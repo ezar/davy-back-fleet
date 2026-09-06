@@ -7,7 +7,7 @@ import { FLIGHT_MS, ImpactEffect } from './effects/ImpactEffect';
 import { getShip } from '@/lib/fleet';
 import { COLUMN_LABELS, ROW_LABELS, cellKey, placementCells } from '@/lib/gameLogic';
 import { type CellState, buildCellStates, sunkPlacements } from '@/lib/boardView';
-import type { Cell, Placement, ShotLog, ShotOutcome, ShotResult } from '@/lib/types';
+import type { Cell, Placement, ShipId, ShotLog, ShotOutcome, ShotResult } from '@/lib/types';
 import { useAudioStore } from '@/store/useAudioStore';
 
 export interface BoardProps {
@@ -296,38 +296,101 @@ function ShipOverlay({
       animate={{
         opacity: 1,
         scale: 1,
-        rotate: sunk ? -7 : 0,
-        y: sunk ? 2 : 0,
         // Levantarlos sobre el plano es lo que da la sensación de volumen.
-        z: tilted ? (sunk ? 3 : 10) : 0,
+        z: tilted ? (sunk ? 2 : 10) : 0,
       }}
-      transition={{ rotate: { type: 'spring', stiffness: 90, damping: 9 } }}
       style={{
         gridColumn: `${placement.col + offset} / span ${horizontal ? ship.size : 1}`,
         gridRow: `${placement.row + offset} / span ${horizontal ? 1 : ship.size}`,
         boxShadow: sunk ? undefined : `inset 0 0 0 1px ${ship.color}8c, 0 2px 0 rgba(0,0,0,0.4)`,
       }}
       className={[
-        'pointer-events-none relative z-10 flex items-center justify-center overflow-hidden',
+        // Hundido sube por encima de las marcas de impacto (z-20): el pecio es
+        // la información, y si no quedaría tapado por las casillas rojas.
+        'pointer-events-none relative flex items-center justify-center',
+        sunk ? 'z-30' : 'z-10 overflow-hidden',
         compact ? 'rounded-[3px]' : 'rounded-md',
-        sunk
-          ? 'bg-blood/50 ring-1 ring-inset ring-blood/70'
-          : 'bg-gradient-to-br from-[#16405d] to-hull',
+        sunk ? '' : 'bg-gradient-to-br from-[#16405d] to-hull',
       ].join(' ')}
       title={`${ship.name} — ${ship.crew}`}
     >
-      <BoardShipArt shipId={placement.shipId} vertical={!horizontal} sunk={sunk} />
-      {/* La franja de color identifica el barco aunque la silueta quede diminuta. */}
-      {!sunk && (
-        <span
-          aria-hidden
-          className={
-            horizontal ? 'absolute inset-y-0 left-0 w-[3px]' : 'absolute inset-x-0 top-0 h-[3px]'
-          }
-          style={{ background: ship.color }}
+      {sunk ? (
+        <Wreck
+          shipId={placement.shipId}
+          size={ship.size}
+          horizontal={horizontal}
+          compact={compact}
         />
+      ) : (
+        <>
+          <BoardShipArt
+            shipId={placement.shipId}
+            vertical={!horizontal}
+            sunk={false}
+            simplified={compact}
+          />
+          {/* La franja de color identifica el barco aunque quede diminuto. */}
+          <span
+            aria-hidden
+            className={
+              horizontal ? 'absolute inset-y-0 left-0 w-[3px]' : 'absolute inset-x-0 top-0 h-[3px]'
+            }
+            style={{ background: ship.color }}
+          />
+        </>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * El barco hundido, partido en dos por la mitad.
+ *
+ * Cada mitad recorta el mismo dibujo con `clip-path` y gira sobre el punto de
+ * ruptura, así que las dos piezas encajan al empezar y se abren como un casco
+ * que se parte. Al girar el elemento gira también su recorte, que es justo lo
+ * que hace que la mitad siga siendo media proa y media popa.
+ */
+function Wreck({
+  shipId,
+  size,
+  horizontal,
+  compact,
+}: {
+  shipId: ShipId;
+  size: number;
+  horizontal: boolean;
+  compact: boolean;
+}) {
+  // El giro es sobre el punto de ruptura, así que el extremo libre se desplaza
+  // en proporción a la eslora: con un ángulo fijo, un barco de cinco casillas
+  // lanzaría sus mitades fuera del tablero. Cuanto más largo, menos ángulo.
+  const tilt = 34 / size + 6;
+  const halves = horizontal
+    ? [
+        { clip: 'inset(0 50% 0 0)', origin: '100% 50%', rotate: -tilt, x: -3 },
+        { clip: 'inset(0 0 0 50%)', origin: '0% 50%', rotate: tilt * 1.15, x: 3 },
+      ]
+    : [
+        { clip: 'inset(0 0 50% 0)', origin: '50% 100%', rotate: tilt, x: -3 },
+        { clip: 'inset(50% 0 0 0)', origin: '50% 0%', rotate: -tilt * 1.15, x: 3 },
+      ];
+
+  return (
+    <>
+      {halves.map((half, i) => (
+        <motion.span
+          key={i}
+          initial={{ rotate: 0, x: 0, y: 0, opacity: 1 }}
+          animate={{ rotate: half.rotate, x: half.x, y: 4, opacity: 0.82 }}
+          transition={{ type: 'spring', stiffness: 70, damping: 11, delay: i * 0.06 }}
+          style={{ clipPath: half.clip, transformOrigin: half.origin }}
+          className="absolute inset-0"
+        >
+          <BoardShipArt shipId={shipId} vertical={!horizontal} sunk simplified={compact} />
+        </motion.span>
+      ))}
+    </>
   );
 }
 
