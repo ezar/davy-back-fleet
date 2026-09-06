@@ -76,19 +76,18 @@ export function CombatView({
 
       <section className="space-y-2">
         <SectionHeader title="Tu flota" afloat={afloatCount(ownShots)} />
-        <div className="flex items-start gap-3">
-          <div className="w-[11.5rem] shrink-0">
-            <Board
-              variant="own"
-              shots={ownShots}
-              placements={ownPlacements}
-              compact
-              onImpact={handleImpact}
-              tilted={tilted}
-            />
-          </div>
-          <OwnFleetStatus shots={ownShots} placements={ownPlacements} />
-        </div>
+        {/* Full width, like the enemy board: squeezed into a thumbnail the
+            fleet was an unreadable smudge, and your own ships breaking up is
+            half of what there is to watch. */}
+        <Board
+          variant="own"
+          shots={ownShots}
+          placements={ownPlacements}
+          compact
+          onImpact={handleImpact}
+          tilted={tilted}
+        />
+        <OwnFleetStatus shots={ownShots} placements={ownPlacements} />
       </section>
     </div>
   );
