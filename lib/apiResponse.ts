@@ -14,7 +14,7 @@ const STATUS_BY_CODE: Record<RoomErrorCode, number> = {
   'multiplayer-unavailable': 503,
 };
 
-/** Traduce un error de reglas a una respuesta JSON; el resto, a un 500 sin filtrar detalles. */
+/** Maps a rule error to a JSON response; anything else to a 500 without leaking details. */
 export function errorResponse(error: unknown): NextResponse {
   if (error instanceof RoomError) {
     return NextResponse.json(
@@ -29,7 +29,7 @@ export function errorResponse(error: unknown): NextResponse {
   );
 }
 
-/** Respuesta correcta, siempre sin caché: el polling necesita datos frescos. */
+/** A successful response, always uncached: polling needs fresh data. */
 export function jsonResponse(data: unknown): NextResponse {
   return NextResponse.json(data, {
     headers: { 'Cache-Control': 'no-store, max-age=0' },

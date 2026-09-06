@@ -1,13 +1,16 @@
-/* Service worker de Davy Back Fleet.
-   Objetivo: que la app sea instalable y arranque sin red. Las rutas /api
-   NUNCA se cachean: son el estado vivo de la partida. */
+/* Davy Back Fleet service worker.
+   Goal: make the app installable and let it start with no network. The /api
+   routes are NEVER cached: they are the live state of the game. */
 
 const CACHE = 'dbf-v1';
 const SHELL = ['/', '/solo', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()),
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(SHELL))
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -15,7 +18,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
+      )
       .then(() => self.clients.claim()),
   );
 });
@@ -26,10 +31,10 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  // El estado de la sala siempre viene de la red.
+  // Room state always comes from the network.
   if (url.pathname.startsWith('/api/')) return;
 
-  // Estáticos: primero la caché, que no cambian sin cambiar de URL.
+  // Static assets: cache first, they never change without changing URL.
   if (url.pathname.startsWith('/_next/static') || url.pathname.startsWith('/icons')) {
     event.respondWith(
       caches.match(request).then(
@@ -45,7 +50,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navegación: primero la red, con la caché como red de seguridad sin cobertura.
+  // Navigation: network first, with the cache as a safety net when offline.
   event.respondWith(
     fetch(request)
       .then((response) => {

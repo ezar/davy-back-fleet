@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 type MultiplayerStatus = 'ready' | 'not-configured' | 'unreachable';
 
-/** Tope de espera del diagnóstico: si Redis no contesta, esto sí. */
+/** Diagnostic timeout: if Redis does not answer, this still does. */
 const PING_TIMEOUT_MS = 3000;
 
 function timeout(ms: number): Promise<never> {
@@ -16,12 +16,12 @@ function timeout(ms: number): Promise<never> {
 }
 
 /**
- * GET /api/health — ¿está el despliegue en condiciones de jugar?
+ * GET /api/health - is this deployment fit to play?
  *
- * Sin esto, el primer síntoma de un Redis mal configurado es un error al
- * crear sala, ya con alguien esperando al otro lado. Aquí se ve antes.
+ * Without it, the first symptom of a misconfigured Redis is an error when
+ * creating a room, with someone already waiting on the other side.
  *
- * No devuelve credenciales ni URLs: solo si el almacén responde y cuánto tarda.
+ * Returns no credentials or URLs: only whether the store answers, and how fast.
  */
 export async function GET() {
   const startedAt = Date.now();
@@ -42,7 +42,7 @@ export async function GET() {
   }
 
   return jsonResponse({
-    // El modo contra la IA es todo cliente: funciona pase lo que pase aquí.
+    // Solo mode is all client-side: it works whatever happens here.
     solo: 'ready',
     multiplayer,
     detail,

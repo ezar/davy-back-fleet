@@ -1,20 +1,23 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { FLEET } from '@/lib/fleet';
 import { cellLabel } from '@/lib/gameLogic';
-import type { Cell, Placement, ShotLog } from '@/lib/types';
+import type { Cell, Placement, ShotLog, ShotOutcome } from '@/lib/types';
+import { useAudioStore } from '@/store/useAudioStore';
+import { SettingsMenu } from './SettingsMenu';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { Board } from './Board';
 import { EnemyFleetChips, OwnFleetStatus, afloatCount } from './FleetStatus';
 
 interface CombatViewProps {
   opponentName: string;
   yourTurn: boolean;
-  /** Texto que se muestra cuando no es tu turno. */
+  /** Text shown while it is not your turn. */
   waitingLabel: string;
-  /** Disparos que has hecho tú al tablero rival. */
+  /** Shots you have fired at the enemy board. */
   enemyShots: ShotLog;
-  /** Disparos que has recibido en el tuyo. */
+  /** Shots you have taken on your own. */
   ownShots: ShotLog;
   ownPlacements: Placement[] | null;
   onShoot: (cell: Cell) => void;
@@ -31,18 +34,41 @@ export function CombatView({
   onShoot,
   shootDisabled,
 }: CombatViewProps) {
+  const [shake, setShake] = useState<'' | 'shake-hit' | 'shake-sunk'>('');
+  const unlock = useAudioStore((state) => state.unlock);
+  const tilted = useSettingsStore((state) => state.view) === 'tilted';
+
+  const handleImpact = useCallback((outcome: ShotOutcome) => {
+    if (outcome === 'miss') return;
+    setShake(outcome === 'sunk' ? 'shake-sunk' : 'shake-hit');
+  }, []);
+
+  // The animation class has to be released before it can be applied again.
+  useEffect(() => {
+    if (!shake) return;
+    const timer = setTimeout(() => setShake(''), 560);
+    return () => clearTimeout(timer);
+  }, [shake]);
+
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${shake}`}>
       <TurnBanner yourTurn={yourTurn} waitingLabel={waitingLabel} />
       <LastMove opponentName={opponentName} ownShots={ownShots} />
 
       <section className="space-y-2">
-        <SectionHeader
-          title={`Flota de ${opponentName}`}
-          accent
-          afloat={afloatCount(enemyShots)}
+        <SectionHeader title={`Flota de ${opponentName}`} accent afloat={afloatCount(enemyShots)} />
+        <Board
+          variant="enemy"
+          shots={enemyShots}
+          onCellClick={(cell) => {
+            // First user gesture: the moment the browser lets audio come to life.
+            unlock();
+            onShoot(cell);
+          }}
+          disabled={shootDisabled}
+          onImpact={handleImpact}
+          tilted={tilted}
         />
-        <Board variant="enemy" shots={enemyShots} onCellClick={onShoot} disabled={shootDisabled} />
         <EnemyFleetChips shots={enemyShots} />
       </section>
 
@@ -52,7 +78,14 @@ export function CombatView({
         <SectionHeader title="Tu flota" afloat={afloatCount(ownShots)} />
         <div className="flex items-start gap-3">
           <div className="w-[11.5rem] shrink-0">
-            <Board variant="own" shots={ownShots} placements={ownPlacements} compact />
+            <Board
+              variant="own"
+              shots={ownShots}
+              placements={ownPlacements}
+              compact
+              onImpact={handleImpact}
+              tilted={tilted}
+            />
           </div>
           <OwnFleetStatus shots={ownShots} placements={ownPlacements} />
         </div>
@@ -125,9 +158,9 @@ function TurnBanner({ yourTurn, waitingLabel }: { yourTurn: boolean; waitingLabe
 }
 
 /**
- * Qué hizo el rival en su último disparo. En una partida por turnos a
- * distancia puedes volver al juego minutos después: sin esto no hay forma
- * de saber qué pasó mientras no mirabas.
+ * What the opponent did on their last shot. In a remote turn-based game you
+ * can come back minutes later: without this there is no way to know what
+ * happened while you were not looking.
  */
 function LastMove({ opponentName, ownShots }: { opponentName: string; ownShots: ShotLog }) {
   const last = ownShots[ownShots.length - 1];
@@ -151,16 +184,19 @@ function LastMove({ opponentName, ownShots }: { opponentName: string; ownShots: 
   );
 }
 
-/** "la IA" abre frase en la línea de última jugada, y ahí va con mayúscula. */
+/** "la IA" opens the last-move sentence, so it needs a capital there. */
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** Cabecera común de las pantallas de partida. */
+/** Shared header for the in-game screens. */
 export function GameHeader({ right }: { right?: ReactNode }) {
   return (
     <header className="flex h-9 items-center justify-between gap-3">
-      <a href="/" className="flex items-center gap-1.5 text-sm font-medium text-foam/55 hover:text-foam">
+      <a
+        href="/"
+        className="flex items-center gap-1.5 text-sm font-medium text-foam/55 hover:text-foam"
+      >
         <svg
           viewBox="0 0 24 24"
           className="h-[17px] w-[17px]"
@@ -175,7 +211,10 @@ export function GameHeader({ right }: { right?: ReactNode }) {
         </svg>
         Inicio
       </a>
-      {right}
+      <span className="flex items-center gap-2">
+        {right}
+        <SettingsMenu />
+      </span>
     </header>
   );
 }

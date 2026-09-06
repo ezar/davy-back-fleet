@@ -9,20 +9,20 @@ import {
 } from './room';
 
 /**
- * Persistencia de salas sobre Upstash Redis.
+ * Room persistence on Upstash Redis.
  *
- * Cada sala es un hash con tres campos: `meta`, `host` y `guest`. Guardar un
- * campo por jugador evita el clásico lee-modifica-escribe entre los dos
- * dispositivos: cada uno solo escribe lo suyo, y el disparo (que toca `meta`)
- * ya está serializado por el turno.
+ * Each room is a hash with three fields: `meta`, `host` and `guest`. Storing
+ * one field per player avoids the classic read-modify-write race between the
+ * two devices: each writes only its own, and firing (which touches `meta`)
+ * is already serialised by the turn.
  */
 
-/** Las salas caducan a las 6 horas de la última jugada. */
+/** Rooms expire 6 hours after the last move. */
 const ROOM_TTL_SECONDS = 6 * 60 * 60;
 
 const keyFor = (code: string) => `dbf:room:${code}`;
 
-/** Un campo del hash puede volver como objeto (Upstash deserializa) o como texto. */
+/** A hash field can come back as an object (Upstash deserialises) or as text. */
 function parseField<T>(value: unknown): T | null {
   if (value === null || value === undefined) return null;
   if (typeof value === 'string') {
@@ -36,18 +36,18 @@ function parseField<T>(value: unknown): T | null {
 }
 
 export interface RoomStore {
-  /** Reserva un código libre y guarda la sala. */
+  /** Claims a free code and stores the room. */
   create(room: Room): Promise<boolean>;
   read(code: string): Promise<Room | null>;
-  /** Guarda un asiento solo si estaba vacío. Devuelve false si ya había alguien. */
+  /** Stores a seat only if it was empty. Returns false if someone was there. */
   claimSeat(code: string, seat: Seat, player: RoomPlayer, meta: RoomMeta): Promise<boolean>;
-  /** Sobrescribe un asiento (y opcionalmente la meta) que ya es tuyo. */
+  /** Overwrites a seat (and optionally the meta) that is already yours. */
   writeSeat(code: string, seat: Seat, player: RoomPlayer, meta: RoomMeta): Promise<void>;
-  /** Comprueba que el almacén responde. Lanza si no. */
+  /** Checks that the store answers. Throws if it does not. */
   ping(): Promise<void>;
 }
 
-/** Implementación sobre Upstash Redis (producción y previews de Vercel). */
+/** Upstash Redis implementation (production and Vercel previews). */
 class RedisRoomStore implements RoomStore {
   constructor(private readonly redis: Redis) {}
 
@@ -73,12 +73,7 @@ class RedisRoomStore implements RoomStore {
     return { meta, host, guest: parseField<RoomPlayer>(raw.guest) };
   }
 
-  async claimSeat(
-    code: string,
-    seat: Seat,
-    player: RoomPlayer,
-    meta: RoomMeta,
-  ): Promise<boolean> {
+  async claimSeat(code: string, seat: Seat, player: RoomPlayer, meta: RoomMeta): Promise<boolean> {
     const key = keyFor(code);
     const claimed = await this.redis.hsetnx(key, seat, player as unknown as object);
     if (!claimed) return false;
@@ -87,12 +82,7 @@ class RedisRoomStore implements RoomStore {
     return true;
   }
 
-  async writeSeat(
-    code: string,
-    seat: Seat,
-    player: RoomPlayer,
-    meta: RoomMeta,
-  ): Promise<void> {
+  async writeSeat(code: string, seat: Seat, player: RoomPlayer, meta: RoomMeta): Promise<void> {
     const key = keyFor(code);
     await this.redis.hset(key, {
       [seat]: player as unknown as object,
@@ -103,9 +93,9 @@ class RedisRoomStore implements RoomStore {
 }
 
 /**
- * En desarrollo, Next instancia los módulos por ruta, así que un `Map` de
- * módulo se duplicaría y cada endpoint vería salas distintas. Colgarlo de
- * `globalThis` mantiene una sola copia para todas las rutas.
+ * In development Next instantiates modules per route, so a module-level `Map`
+ * would be duplicated and every endpoint would see different rooms. Hanging it
+ * off `globalThis` keeps a single copy for all routes.
  */
 function memoryRooms(): Map<string, Room> {
   const globals = globalThis as typeof globalThis & { __dbfRooms?: Map<string, Room> };
@@ -114,14 +104,14 @@ function memoryRooms(): Map<string, Room> {
 }
 
 /**
- * Respaldo en memoria para desarrollo local sin credenciales de Upstash.
- * No sobrevive entre invocaciones serverless: nunca debe usarse en producción.
+ * In-memory fallback for local development without Upstash credentials.
+ * It does not survive across serverless invocations: never use it in production.
  */
 class MemoryRoomStore implements RoomStore {
   private readonly rooms = memoryRooms();
 
   async ping(): Promise<void> {
-    /* Siempre disponible: vive en este proceso. */
+    /* Always available: it lives in this process. */
   }
 
   async create(room: Room): Promise<boolean> {
@@ -151,8 +141,8 @@ class MemoryRoomStore implements RoomStore {
 }
 
 /**
- * Acepta tanto los nombres de la integración Upstash de Vercel Marketplace
- * (`KV_REST_API_*`) como los nativos de Upstash (`UPSTASH_REDIS_REST_*`).
+ * Accepts both the Vercel Marketplace Upstash names (`KV_REST_API_*`) and
+ * Upstash's own (`UPSTASH_REDIS_REST_*`).
  */
 function readCredentials(): { url: string; token: string } | null {
   const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
@@ -169,15 +159,15 @@ export function getRoomStore(): RoomStore {
     store = new RedisRoomStore(
       new Redis({
         ...credentials,
-        // Un reintento y poco más: si Redis no está, es mejor un error rápido
-        // que una función colgada hasta que Vercel la corte.
+        // One retry and little more: if Redis is down, a fast error beats a
+        // function hanging until Vercel cuts it off.
         retry: { retries: 1, backoff: () => 250 },
       }),
     );
   } else {
     if (process.env.NODE_ENV === 'production') {
-      // Error tipado: el cliente recibe un 503 con un mensaje que se entiende,
-      // en vez de un 500 genérico que no dice qué falta configurar.
+      // A typed error: the client gets a 503 with a message that makes sense,
+      // instead of a generic 500 that says nothing about what is missing.
       throw new RoomError(
         'multiplayer-unavailable',
         'Este despliegue no tiene Redis configurado, así que el multijugador está apagado. El modo contra la IA sí funciona.',
@@ -191,12 +181,12 @@ export function getRoomStore(): RoomStore {
   return store;
 }
 
-/** Identificador secreto de jugador. */
+/** The player's secret identifier. */
 export function newPlayerId(): string {
   return crypto.randomUUID();
 }
 
-/** Busca un código de sala libre. */
+/** Finds a free room code. */
 export async function reserveRoomCode(
   store: RoomStore,
   build: (code: string) => Room,
@@ -208,7 +198,7 @@ export async function reserveRoomCode(
   throw new RoomError('invalid-request', 'No se ha podido crear la sala, inténtalo de nuevo');
 }
 
-/** Lee una sala o lanza el error de "no existe". */
+/** Reads a room, or throws the "does not exist" error. */
 export async function requireRoom(store: RoomStore, code: string): Promise<Room> {
   const room = await store.read(code);
   if (!room) throw new RoomError('room-not-found', 'Esa sala no existe o ha caducado');

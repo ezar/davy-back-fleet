@@ -5,16 +5,14 @@ import { createRoom, sanitizeName, viewRoomFor } from '@/lib/room';
 
 export const dynamic = 'force-dynamic';
 
-/** POST /api/room/create — crea una sala y devuelve su código. */
+/** POST /api/room/create - creates a room and returns its code. */
 export async function POST(request: Request) {
   try {
     const body = await readJsonBody(request);
     const name = sanitizeName(body.name, 'Capitán');
     const playerId = newPlayerId();
 
-    const room = await reserveRoomCode(getRoomStore(), (code) =>
-      createRoom(code, name, playerId),
-    );
+    const room = await reserveRoomCode(getRoomStore(), (code) => createRoom(code, name, playerId));
 
     return jsonResponse({
       code: room.meta.code,

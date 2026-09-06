@@ -3,7 +3,7 @@
 import type { RoomView } from './room';
 import type { Cell, Placement, ShotResult } from './types';
 
-/** Cliente HTTP de las rutas de sala. Todo lo que habla con el servidor pasa por aquí. */
+/** HTTP client for the room routes. Everything that talks to the server goes through here. */
 
 export class ApiError extends Error {
   constructor(
@@ -25,13 +25,15 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     throw new ApiError(
       typeof payload.error === 'string' ? payload.error : 'server-error',
-      typeof payload.message === 'string' ? payload.message : 'No se ha podido contactar con el barco',
+      typeof payload.message === 'string'
+        ? payload.message
+        : 'No se ha podido contactar con el barco',
     );
   }
   return payload as T;
 }
 
-const post = <T,>(url: string, body: unknown) =>
+const post = <T>(url: string, body: unknown) =>
   request<T>(url, { method: 'POST', body: JSON.stringify(body) });
 
 export interface JoinResponse {
@@ -40,8 +42,7 @@ export interface JoinResponse {
   view: RoomView;
 }
 
-export const createRoomRequest = (name: string) =>
-  post<JoinResponse>('/api/room/create', { name });
+export const createRoomRequest = (name: string) => post<JoinResponse>('/api/room/create', { name });
 
 export const joinRoomRequest = (code: string, name: string) =>
   post<JoinResponse>('/api/room/join', { code, name });
@@ -57,7 +58,7 @@ export const placeFleetRequest = (code: string, playerId: string, placements: Pl
 export const shootRequest = (code: string, playerId: string, cell: Cell) =>
   post<{ view: RoomView; result: ShotResult }>('/api/room/shoot', { code, playerId, cell });
 
-/** Sesión del jugador en una sala, guardada para sobrevivir a un refresco. */
+/** The player's session in a room, stored so it survives a reload. */
 const sessionKey = (code: string) => `dbf:session:${code}`;
 const NAME_KEY = 'dbf:name';
 
@@ -65,7 +66,7 @@ export function saveSession(code: string, playerId: string): void {
   try {
     localStorage.setItem(sessionKey(code), playerId);
   } catch {
-    // Modo privado o almacenamiento lleno: la partida sigue, solo se pierde al refrescar.
+    // Private mode or full storage: the game goes on, only a reload loses it.
   }
 }
 
@@ -81,7 +82,7 @@ export function clearSession(code: string): void {
   try {
     localStorage.removeItem(sessionKey(code));
   } catch {
-    /* nada que hacer */
+    /* nothing to do */
   }
 }
 
@@ -89,7 +90,7 @@ export function saveName(name: string): void {
   try {
     localStorage.setItem(NAME_KEY, name);
   } catch {
-    /* nada que hacer */
+    /* nothing to do */
   }
 }
 

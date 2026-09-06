@@ -1,17 +1,17 @@
 import { cellKey, placementCells } from './gameLogic';
 import type { Cell, Placement, ShipId, ShotLog } from './types';
 
-/** Cómo se pinta una celda concreta del tablero. */
+/** How a given board cell should be painted. */
 export interface CellState {
-  /** Resultado del disparo recibido en esa celda, si lo hay. */
+  /** Outcome of the shot this cell took, if any. */
   shot?: 'miss' | 'hit' | 'sunk';
-  /** Barco propio que ocupa la celda (solo en el tablero propio). */
+  /** Own ship occupying the cell (own board only). */
   shipId?: ShipId;
 }
 
 /**
- * Estado de cada celda a partir del historial de disparos.
- * Las celdas de un barco hundido se marcan todas como `sunk`, no solo la última.
+ * Per-cell state derived from the shot log.
+ * Every cell of a sunk ship is marked `sunk`, not just the final one.
  */
 export function buildCellStates(
   shots: ShotLog,
@@ -37,8 +37,8 @@ export function buildCellStates(
 }
 
 /**
- * Reconstruye la posición de los barcos hundidos a partir de los disparos.
- * Sirve para dibujar el barco rival en el tablero en cuanto se hunde.
+ * Rebuilds the position of sunk ships from the shot log.
+ * Lets the enemy ship be drawn on the board the moment it goes down.
  */
 export function sunkPlacements(shots: ShotLog): Placement[] {
   const placements: Placement[] = [];

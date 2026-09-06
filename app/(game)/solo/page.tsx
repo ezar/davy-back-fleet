@@ -6,11 +6,13 @@ import { PlacementEditor } from '@/components/PlacementEditor';
 import { ResultScreen } from '@/components/ResultScreen';
 import { SunkBanner } from '@/components/SunkBanner';
 import { FLEET } from '@/lib/fleet';
+import { useAudioStore } from '@/store/useAudioStore';
 import { useGameStore } from '@/store/useGameStore';
 
 const OPPONENT = 'la IA';
 
 export default function SoloPage() {
+  const unlockAudio = useAudioStore((state) => state.unlock);
   const {
     phase,
     playerFleet,
@@ -27,7 +29,7 @@ export default function SoloPage() {
     shoot,
   } = useGameStore();
 
-  // La flota se sortea en el cliente: hacerlo en el servidor rompería la hidratación.
+  // The fleet is rolled on the client: doing it on the server would break hydration.
   useEffect(() => {
     if (phase === 'idle') newGame();
   }, [phase, newGame]);
@@ -65,7 +67,10 @@ export default function SoloPage() {
           <PlacementEditor placements={playerFleet} onChange={setPlayerFleet} />
           <button
             type="button"
-            onClick={startBattle}
+            onClick={() => {
+              unlockAudio();
+              startBattle();
+            }}
             disabled={missing > 0}
             className="h-[54px] w-full rounded-xl bg-gold font-display text-base font-black tracking-[0.07em] text-abyss shadow-plank transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-foam/10 disabled:text-foam/40"
           >

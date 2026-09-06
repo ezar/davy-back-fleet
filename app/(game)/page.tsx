@@ -83,7 +83,7 @@ export default function HomePage() {
   );
 }
 
-/** Rosa de los vientos de fondo, detrás del título. */
+/** Background compass rose, behind the title. */
 function CompassRose() {
   return (
     <svg

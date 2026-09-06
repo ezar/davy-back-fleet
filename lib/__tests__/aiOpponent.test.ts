@@ -1,20 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { chooseAiShot, unresolvedHits } from '../aiOpponent';
 import { TOTAL_SHIP_CELLS } from '../fleet';
-import {
-  BOARD_SIZE,
-  cellKey,
-  isFleetDestroyed,
-  randomFleet,
-  resolveShot,
-} from '../gameLogic';
+import { BOARD_SIZE, cellKey, isFleetDestroyed, randomFleet, resolveShot } from '../gameLogic';
 import { seededRng } from '../rng';
 import type { Cell, ShotLog } from '../types';
 
 const at = (row: number, col: number): Cell => ({ row, col });
 
 describe('unresolvedHits', () => {
-  it('ignora los impactos de barcos ya hundidos', () => {
+  it('ignores hits from ships already sunk', () => {
     const log: ShotLog = [
       { cell: at(0, 0), outcome: 'hit' },
       {
@@ -28,27 +22,27 @@ describe('unresolvedHits', () => {
     expect(unresolvedHits(log)).toEqual([at(5, 5)]);
   });
 
-  it('está vacío si solo hay fallos', () => {
+  it('is empty when there are only misses', () => {
     expect(unresolvedHits([{ cell: at(2, 2), outcome: 'miss' }])).toEqual([]);
   });
 });
 
-describe('fase de caza', () => {
-  it('dispara a una celda no probada', () => {
+describe('hunting phase', () => {
+  it('fires at an untried cell', () => {
     const log: ShotLog = [{ cell: at(0, 0), outcome: 'miss' }];
     const decision = chooseAiShot(log, seededRng(9));
     expect(decision.phase).toBe('hunt');
     expect(cellKey(decision.cell)).not.toBe(cellKey(at(0, 0)));
   });
 
-  it('la estrategia de paridad se queda en el damero', () => {
+  it('the parity strategy stays on the checkerboard', () => {
     for (let seed = 1; seed <= 50; seed++) {
       const { cell } = chooseAiShot([], seededRng(seed), 'parity');
       expect((cell.row + cell.col) % 2).toBe(0);
     }
   });
 
-  it('lanza si el tablero está agotado', () => {
+  it('throws when the board is exhausted', () => {
     const log: ShotLog = [];
     for (let row = 0; row < BOARD_SIZE; row++) {
       for (let col = 0; col < BOARD_SIZE; col++) log.push({ cell: at(row, col), outcome: 'miss' });
@@ -57,16 +51,17 @@ describe('fase de caza', () => {
   });
 });
 
-describe('fase objetivo', () => {
-  it('tras un impacto prueba una de las 4 celdas en cruz', () => {
+describe('target phase', () => {
+  it('after a hit it tries one of the 4 orthogonal cells', () => {
     const log: ShotLog = [{ cell: at(4, 4), outcome: 'hit' }];
     const decision = chooseAiShot(log, seededRng(5));
     expect(decision.phase).toBe('target');
-    expect([cellKey(at(3, 4)), cellKey(at(5, 4)), cellKey(at(4, 3)), cellKey(at(4, 5))])
-      .toContain(cellKey(decision.cell));
+    expect([cellKey(at(3, 4)), cellKey(at(5, 4)), cellKey(at(4, 3)), cellKey(at(4, 5))]).toContain(
+      cellKey(decision.cell),
+    );
   });
 
-  it('en una esquina solo considera las cruces dentro del tablero', () => {
+  it('in a corner it only considers neighbours inside the board', () => {
     const log: ShotLog = [{ cell: at(0, 0), outcome: 'hit' }];
     for (let seed = 1; seed <= 20; seed++) {
       const { cell } = chooseAiShot(log, seededRng(seed));
@@ -74,7 +69,7 @@ describe('fase objetivo', () => {
     }
   });
 
-  it('con dos impactos alineados extiende solo esa dirección', () => {
+  it('with two aligned hits it extends only that direction', () => {
     const log: ShotLog = [
       { cell: at(4, 4), outcome: 'hit' },
       { cell: at(4, 5), outcome: 'hit' },
@@ -86,7 +81,7 @@ describe('fase objetivo', () => {
     }
   });
 
-  it('si un extremo falla, sigue por el otro', () => {
+  it('when one end misses, it continues from the other', () => {
     const log: ShotLog = [
       { cell: at(4, 4), outcome: 'hit' },
       { cell: at(4, 5), outcome: 'hit' },
@@ -97,7 +92,7 @@ describe('fase objetivo', () => {
     }
   });
 
-  it('extiende verticalmente cuando el rastro es vertical', () => {
+  it('extends vertically when the trail is vertical', () => {
     const log: ShotLog = [
       { cell: at(3, 2), outcome: 'hit' },
       { cell: at(4, 2), outcome: 'hit' },
@@ -108,7 +103,7 @@ describe('fase objetivo', () => {
     }
   });
 
-  it('vuelve a cazar en cuanto hunde el barco perseguido', () => {
+  it('goes back to hunting as soon as the chased ship sinks', () => {
     const log: ShotLog = [
       { cell: at(4, 4), outcome: 'hit' },
       {
@@ -121,8 +116,8 @@ describe('fase objetivo', () => {
     expect(chooseAiShot(log, seededRng(11)).phase).toBe('hunt');
   });
 
-  it('retoma un rastro antiguo si el reciente se queda sin salidas', () => {
-    // (0,0) tocado y rodeado de agua salvo por el rastro viejo en (7,7).
+  it('picks an older trail back up when the recent one runs out of options', () => {
+    // (0,0) hit and surrounded by water except for the old trail at (7,7).
     const log: ShotLog = [
       { cell: at(7, 7), outcome: 'hit' },
       { cell: at(0, 0), outcome: 'hit' },
@@ -131,13 +126,14 @@ describe('fase objetivo', () => {
     ];
     const { cell, phase } = chooseAiShot(log, seededRng(4));
     expect(phase).toBe('target');
-    expect([cellKey(at(6, 7)), cellKey(at(8, 7)), cellKey(at(7, 6)), cellKey(at(7, 8))])
-      .toContain(cellKey(cell));
+    expect([cellKey(at(6, 7)), cellKey(at(8, 7)), cellKey(at(7, 6)), cellKey(at(7, 8))]).toContain(
+      cellKey(cell),
+    );
   });
 });
 
-describe('simulación de partidas completas', () => {
-  /** Juega una partida entera de la IA contra una flota aleatoria. */
+describe('full game simulation', () => {
+  /** Plays a whole AI game against a random fleet. */
   function playGame(seed: number, strategy: 'random' | 'parity') {
     const rng = seededRng(seed);
     const fleet = randomFleet(rng);
@@ -151,7 +147,7 @@ describe('simulación de partidas completas', () => {
     return log;
   }
 
-  it('siempre hunde la flota sin repetir celda (200 partidas)', () => {
+  it('always sinks the fleet without repeating a cell (200 games)', () => {
     let total = 0;
     for (let seed = 1; seed <= 200; seed++) {
       const log = playGame(seed, 'random');
@@ -159,13 +155,13 @@ describe('simulación de partidas completas', () => {
       expect(log.filter((s) => s.outcome !== 'miss')).toHaveLength(TOTAL_SHIP_CELLS);
       total += log.length;
     }
-    // Con caza aleatoria la media ronda los 75 disparos: rival asequible.
+    // With random hunting the average is around 75 shots: an approachable rival.
     const average = total / 200;
     expect(average).toBeGreaterThan(50);
     expect(average).toBeLessThan(95);
   });
 
-  it('la paridad gana bastante antes que la caza aleatoria', () => {
+  it('parity wins considerably sooner than random hunting', () => {
     const avg = (strategy: 'random' | 'parity') => {
       let total = 0;
       for (let seed = 1; seed <= 100; seed++) total += playGame(seed, strategy).length;

@@ -10,17 +10,19 @@ import { useRoom } from '@/hooks/useRoom';
 import { FLEET } from '@/lib/fleet';
 import { randomFleet } from '@/lib/gameLogic';
 import { normalizeRoomCode } from '@/lib/room';
+import { useAudioStore } from '@/store/useAudioStore';
 import type { Placement } from '@/lib/types';
 
 export default function RoomPage({ params }: { params: { code: string } }) {
   const code = normalizeRoomCode(params.code);
   const { view, error, sunkByYou, sunkByOpponent, placeFleet, shoot, busy } = useRoom(code);
   const [draft, setDraft] = useState<Placement[]>([]);
+  const unlockAudio = useAudioStore((state) => state.unlock);
 
-  // Se sortea una flota de partida en el cliente para no romper la hidratación.
+  // A starting fleet is rolled on the client so hydration is not broken.
   useEffect(() => {
     if (draft.length === 0 && view && !view.you.ready) setDraft(randomFleet());
-    // Solo al entrar en fase de colocación: después manda el jugador.
+    // Only when entering the placement phase: after that the player is in charge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.you.ready]);
 
@@ -63,7 +65,10 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           <PlacementEditor placements={draft} onChange={setDraft} disabled={busy} />
           <button
             type="button"
-            onClick={() => placeFleet(draft)}
+            onClick={() => {
+              unlockAudio();
+              void placeFleet(draft);
+            }}
             disabled={missing > 0 || busy}
             className="h-[54px] w-full rounded-xl bg-gold font-display text-base font-black tracking-[0.07em] text-abyss shadow-plank transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-foam/10 disabled:text-foam/40"
           >
@@ -120,7 +125,7 @@ function RoomCode({ code }: { code: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // El usuario ha cancelado el diálogo de compartir: no hay nada que hacer.
+      // The user dismissed the share sheet: nothing to do.
     }
   };
 

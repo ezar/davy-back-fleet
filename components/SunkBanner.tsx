@@ -7,8 +7,8 @@ import { ShipSilhouette } from './ShipSilhouette';
 import type { ShipId } from '@/lib/types';
 
 /**
- * Micro-celebración al hundir un barco: nombre, tripulación y frase.
- * Se muestra unos segundos y desaparece sola.
+ * Micro-celebration when a ship sinks: name, crew and tagline.
+ * It shows for a few seconds and dismisses itself.
  */
 export function SunkBanner({
   shipId,
@@ -42,9 +42,7 @@ export function SunkBanner({
           <div
             className={[
               'rounded-xl border px-4 py-3 text-center shadow-glow backdrop-blur',
-              byOpponent
-                ? 'border-blood/60 bg-blood/40'
-                : 'border-gold/60 bg-abyss/90',
+              byOpponent ? 'border-blood/60 bg-blood/40' : 'border-gold/60 bg-abyss/90',
             ].join(' ')}
           >
             <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-gold">

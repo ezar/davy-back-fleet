@@ -5,7 +5,7 @@ import { RoomError, applyShot, otherSeat, seatOf, viewRoomFor } from '@/lib/room
 
 export const dynamic = 'force-dynamic';
 
-/** POST /api/room/shoot — dispara a una celda del tablero rival. */
+/** POST /api/room/shoot - fires at a cell of the opponent's board. */
 export async function POST(request: Request) {
   try {
     const body = await readJsonBody(request);
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     if (!seat) throw new RoomError('not-a-player', 'No perteneces a esta sala');
 
     const { room: updated, result } = applyShot(room, seat, cell);
-    // El disparo solo modifica el tablero del rival, y el turno lo serializa.
+    // A shot only changes the opponent's board, and the turn serialises it.
     const defenderSeat = otherSeat(seat);
     const defender = defenderSeat === 'host' ? updated.host : updated.guest!;
     await store.writeSeat(code, defenderSeat, defender, updated.meta);

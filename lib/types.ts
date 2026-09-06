@@ -1,23 +1,18 @@
-/** Tipos compartidos entre cliente, IA y rutas API. */
+/** Types shared between the client, the AI and the API routes. */
 
 export type Orientation = 'horizontal' | 'vertical';
 
-export type ShipId =
-  | 'thousand-sunny'
-  | 'moby-dick'
-  | 'going-merry'
-  | 'oro-jackson'
-  | 'red-force';
+export type ShipId = 'thousand-sunny' | 'moby-dick' | 'going-merry' | 'oro-jackson' | 'red-force';
 
-/** Celda del tablero en coordenadas 0-indexadas. */
+/** A board cell in zero-based coordinates. */
 export interface Cell {
-  /** Fila 0..9 (se muestra como 1..10). */
+  /** Row 0..9 (shown as 1..10). */
   row: number;
-  /** Columna 0..9 (se muestra como A..J). */
+  /** Column 0..9 (shown as A..J). */
   col: number;
 }
 
-/** Un barco colocado en el tablero: ancla (celda superior-izquierda) + orientación. */
+/** A ship on the board: anchor (top-left cell) plus orientation. */
 export interface Placement {
   shipId: ShipId;
   row: number;
@@ -27,31 +22,25 @@ export interface Placement {
 
 export type ShotOutcome = 'miss' | 'hit' | 'sunk';
 
-/** Resultado de un disparo, tal y como lo ve quien dispara. */
+/** The result of a shot, as seen by whoever fired it. */
 export interface ShotResult {
   cell: Cell;
   outcome: ShotOutcome;
-  /** Solo presente si `outcome === 'sunk'`. */
+  /** Only present when `outcome === 'sunk'`. */
   sunkShipId?: ShipId;
   /**
-   * Celdas del barco hundido. Se revelan solo al hundirlo, nunca antes:
-   * es información que el rival ya puede deducir y la necesita la IA.
+   * Cells of the sunk ship. Revealed only once it goes down, never before:
+   * the opponent can already deduce them, and the AI needs them.
    */
   sunkCells?: Cell[];
 }
 
-/** Historial de disparos contra un tablero, en orden cronológico. */
+/** Shots fired at one board, in chronological order. */
 export type ShotLog = ShotResult[];
 
-/** Motivo por el que una flota no es válida. */
+/** Why a fleet layout is not valid. */
 export type FleetInvalidReason =
-  | 'wrong-ship-count'
-  | 'duplicate-ship'
-  | 'unknown-ship'
-  | 'out-of-bounds'
-  | 'overlap'
-  | 'adjacent';
+  'wrong-ship-count' | 'duplicate-ship' | 'unknown-ship' | 'out-of-bounds' | 'overlap' | 'adjacent';
 
 export type FleetValidation =
-  | { ok: true }
-  | { ok: false; reason: FleetInvalidReason; shipId?: ShipId };
+  { ok: true } | { ok: false; reason: FleetInvalidReason; shipId?: ShipId };

@@ -8,22 +8,22 @@ import {
 import { type Rng, defaultRng, randomInt } from './rng';
 import type { Cell, Placement, ShotLog, ShotResult } from './types';
 
-/** Los dos asientos de una sala: quien la crea y quien se une. */
+/** The two seats in a room: whoever creates it and whoever joins. */
 export type Seat = 'host' | 'guest';
 
 /**
- * Fase de la partida. No se persiste: se deriva del estado de los jugadores,
- * así dos dispositivos que escriben a la vez nunca dejan la sala a medias.
+ * Game phase. Never persisted: it is derived from the players' state, so two
+ * devices writing at once can never leave the room half-updated.
  */
 export type RoomPhase = 'waiting' | 'placing' | 'battle' | 'finished';
 
 export interface RoomPlayer {
-  /** Token secreto del jugador; nunca se envía al rival. */
+  /** The player's secret token; never sent to the opponent. */
   id: string;
   name: string;
-  /** Flota propia. Privada: jamás sale en la vista del rival. */
+  /** Own fleet. Private: it never appears in the opponent's view. */
   placements: Placement[] | null;
-  /** Disparos que ha recibido este jugador, en orden. */
+  /** Shots this player has taken, in order. */
   shotsReceived: ShotLog;
   joinedAt: number;
 }
@@ -32,7 +32,7 @@ export interface RoomMeta {
   code: string;
   createdAt: number;
   updatedAt: number;
-  /** A quién le toca disparar. Solo lo escribe `applyShot`, ya serializado por turnos. */
+  /** Whose turn it is to fire. Only `applyShot` writes it, and turns serialise it. */
   turn: Seat;
 }
 
@@ -42,7 +42,7 @@ export interface Room {
   guest: RoomPlayer | null;
 }
 
-/** Vista de la sala desde la perspectiva de un jugador, ya censurada. */
+/** The room as one player sees it, already redacted. */
 export interface RoomView {
   code: string;
   phase: RoomPhase;
@@ -52,16 +52,16 @@ export interface RoomView {
   you: {
     name: string;
     ready: boolean;
-    /** Tu propia flota. */
+    /** Your own fleet. */
     placements: Placement[] | null;
-    /** Disparos que te ha hecho el rival. */
+    /** Shots the opponent has fired at you. */
     incomingShots: ShotLog;
   };
   opponent: {
     name: string | null;
     present: boolean;
     ready: boolean;
-    /** Disparos que tú le has hecho, con los hundimientos ya revelados. */
+    /** Shots you have fired at them, with sinkings already revealed. */
     outgoingShots: ShotLog;
   };
   outcome: 'won' | 'lost' | null;
@@ -79,7 +79,7 @@ export type RoomErrorCode =
   | 'invalid-request'
   | 'multiplayer-unavailable';
 
-/** Error de reglas de sala, con código traducible a HTTP. */
+/** A room rule violation, with a code that maps to an HTTP status. */
 export class RoomError extends Error {
   constructor(
     readonly code: RoomErrorCode,
@@ -92,7 +92,7 @@ export class RoomError extends Error {
 
 export const ROOM_CODE_LENGTH = 5;
 
-/** Alfabeto sin caracteres que se confunden al dictar el código (I, O, 0, 1). */
+/** Alphabet without characters that are confused when read aloud (I, O, 0, 1). */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export function generateRoomCode(rng: Rng = defaultRng): string {
@@ -103,7 +103,7 @@ export function generateRoomCode(rng: Rng = defaultRng): string {
   return code;
 }
 
-/** Normaliza lo que teclea el jugador: mayúsculas y sin espacios. */
+/** Normalises what the player types: upper case, no spaces. */
 export function normalizeRoomCode(raw: string): string {
   return raw.trim().toUpperCase().replace(/\s+/g, '');
 }
@@ -111,15 +111,17 @@ export function normalizeRoomCode(raw: string): string {
 export function isValidRoomCode(raw: string): boolean {
   const code = normalizeRoomCode(raw);
   return (
-    code.length === ROOM_CODE_LENGTH &&
-    [...code].every((char) => CODE_ALPHABET.includes(char))
+    code.length === ROOM_CODE_LENGTH && [...code].every((char) => CODE_ALPHABET.includes(char))
   );
 }
 
-/** Nombre saneado: sin caracteres de control, recortado y con tope de longitud. */
+/** Sanitised name: no control characters, trimmed and length-capped. */
 export function sanitizeName(raw: unknown, fallback: string): string {
   if (typeof raw !== 'string') return fallback;
-  const clean = raw.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, 20);
+  const clean = raw
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .trim()
+    .slice(0, 20);
   return clean.length > 0 ? clean : fallback;
 }
 
@@ -127,19 +129,19 @@ export function isReady(player: RoomPlayer | null): player is RoomPlayer {
   return player !== null && player.placements !== null;
 }
 
-/** ¿Ha perdido este jugador toda su flota? */
+/** Has this player lost their whole fleet? */
 function isDefeated(player: RoomPlayer | null): boolean {
   return player !== null && isFleetDestroyed(player.shotsReceived);
 }
 
-/** Asiento derrotado, si lo hay. El ganador es el otro. */
+/** The defeated seat, if any. The winner is the other one. */
 export function loser(room: Room): Seat | null {
   if (isDefeated(room.host)) return 'host';
   if (isDefeated(room.guest)) return 'guest';
   return null;
 }
 
-/** Fase derivada del estado actual de la sala. */
+/** Phase derived from the room's current state. */
 export function roomPhase(room: Room): RoomPhase {
   if (!room.guest) return 'waiting';
   if (loser(room)) return 'finished';
@@ -159,12 +161,7 @@ function playerAt(room: Room, seat: Seat): RoomPlayer | null {
   return seat === 'host' ? room.host : room.guest;
 }
 
-export function createRoom(
-  code: string,
-  hostName: string,
-  hostId: string,
-  now = Date.now(),
-): Room {
+export function createRoom(code: string, hostName: string, hostId: string, now = Date.now()): Room {
   return {
     meta: { code, createdAt: now, updatedAt: now, turn: 'host' },
     host: { id: hostId, name: hostName, placements: null, shotsReceived: [], joinedAt: now },
@@ -172,13 +169,8 @@ export function createRoom(
   };
 }
 
-/** Añade al segundo jugador. Falla si la sala ya está llena. */
-export function joinRoom(
-  room: Room,
-  guestName: string,
-  guestId: string,
-  now = Date.now(),
-): Room {
+/** Adds the second player. Fails if the room is already full. */
+export function joinRoom(room: Room, guestName: string, guestId: string, now = Date.now()): Room {
   if (room.guest) throw new RoomError('room-full', 'La sala ya tiene dos jugadores');
   return {
     meta: { ...room.meta, updatedAt: now },
@@ -193,7 +185,7 @@ export function joinRoom(
   };
 }
 
-/** Confirma la flota de un jugador. Se puede recolocar mientras no empiece el combate. */
+/** Confirms a player's fleet. It can be rearranged until the battle starts. */
 export function applyPlacement(
   room: Room,
   seat: Seat,
@@ -219,7 +211,7 @@ export function applyPlacement(
   };
 }
 
-/** Resuelve un disparo del asiento `seat` contra el tablero rival. */
+/** Resolves a shot from `seat` against the opponent's board. */
 export function applyShot(
   room: Room,
   seat: Seat,
@@ -251,7 +243,7 @@ export function applyShot(
     shotsReceived: [...defender.shotsReceived, result],
   };
 
-  // Quien acierta repite turno, como en el juego de mesa clásico.
+  // A hit earns another turn, as in the classic board game.
   const keepsTurn = result.outcome !== 'miss';
   const next: Room = {
     meta: { ...room.meta, updatedAt: now, turn: keepsTurn ? seat : defenderSeat },
@@ -262,8 +254,8 @@ export function applyShot(
 }
 
 /**
- * Proyecta la sala para un jugador concreto.
- * Nunca incluye la flota del rival: solo los disparos que ya conoce.
+ * Projects the room for one specific player.
+ * Never includes the opponent's fleet: only the shots they already know about.
  */
 export function viewRoomFor(room: Room, playerId: string): RoomView {
   const seat = seatOf(room, playerId);

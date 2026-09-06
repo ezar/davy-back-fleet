@@ -2,19 +2,21 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { FLEET, getShip } from '@/lib/fleet';
 import { sunkShipIds } from '@/lib/gameLogic';
 import type { ShotLog } from '@/lib/types';
+import { useAudioStore } from '@/store/useAudioStore';
 import { afloatCount } from './FleetStatus';
 
 interface ResultScreenProps {
   outcome: 'won' | 'lost';
   opponentName: string;
-  /** Disparos que has hecho tú: de aquí salen los disparos y la precisión. */
+  /** Shots you fired: the shot count and accuracy come from here. */
   yourShots: ShotLog;
-  /** Disparos recibidos: de aquí sale cuántos barcos te quedan a flote. */
+  /** Shots taken: how many of your ships are still afloat comes from here. */
   incomingShots: ShotLog;
-  /** Si se pasa, se ofrece revancha inmediata (modo solitario). */
+  /** When given, an immediate rematch is offered (solo mode). */
   onRestart?: () => void;
 }
 
@@ -26,10 +28,17 @@ export function ResultScreen({
   onRestart,
 }: ResultScreenProps) {
   const won = outcome === 'won';
+  const play = useAudioStore((state) => state.play);
+
+  // Fanfare exactly once, as the screen appears.
+  useEffect(() => {
+    play(won ? 'victory' : 'defeat');
+  }, [won, play]);
+
   const hits = yourShots.filter((shot) => shot.outcome !== 'miss').length;
   const accuracy = yourShots.length > 0 ? Math.round((hits / yourShots.length) * 100) : 0;
   const afloat = afloatCount(incomingShots);
-  // En victoria se listan los barcos que has hundido; en derrota, los que perdiste.
+  // On a win the ships you sank are listed; on a loss, the ones you lost.
   const casualties = sunkShipIds(won ? yourShots : incomingShots);
 
   return (

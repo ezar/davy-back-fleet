@@ -8,7 +8,7 @@
 
 body {
   @apply bg-abyss text-foam font-body antialiased;
-  /* Resplandor de mar arriba, sangre abajo, y una retícula fina de carta náutica. */
+  /* Sea glow up top, blood below, and a fine nautical-chart grid. */
   background-image:
     radial-gradient(130% 55% at 50% -6%, rgba(27, 79, 114, 0.55), rgba(4, 16, 29, 0) 62%),
     radial-gradient(120% 45% at 50% 106%, rgba(140, 31, 31, 0.22), rgba(4, 16, 29, 0) 58%),
@@ -18,7 +18,7 @@ body {
   min-height: 100dvh;
 }
 
-/* El tablero nunca debe provocar scroll horizontal en el móvil. */
+/* The board must never cause horizontal scrolling on a phone. */
 .board-grid {
   display: grid;
   grid-template-columns: 1.15rem repeat(10, minmax(0, 1fr));
@@ -26,13 +26,73 @@ body {
   touch-action: manipulation;
 }
 
-/* Miniatura del tablero propio durante el combate: sin cabeceras. */
+/* Thumbnail of your own board during combat: no headers. */
 .board-grid--compact {
   grid-template-columns: repeat(10, minmax(0, 1fr));
 }
 
 .board-cell {
   @apply relative aspect-square rounded-[3px] transition-colors duration-150;
+}
+
+/*
+ * 2.5D mode: the board tilts into perspective and the ships lift off the
+ * water. The tilt compresses the on-screen height without changing the
+ * layout box, so the negative margin reclaims that dead space.
+ */
+.board-stage {
+  perspective: 1200px;
+  perspective-origin: 50% 30%;
+}
+
+.board-stage .board-grid {
+  /* Perspective widens the near edge: the `scale` brings it back to the
+     container width, and the negative margin reclaims the height the tilt
+     compresses visually while the layout box still reserves it. */
+  transform: rotateX(38deg) scale(0.88);
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+  /* Percentage margins resolve against the container WIDTH, not its height:
+     that is why these numbers look nothing like the vertical trim. */
+  margin-block: -14% -8%;
+}
+
+/* Labels face the camera. Without moving them in Z: in perspective they
+   would drift outside the board. */
+.board-stage .billboard {
+  transform: rotateX(-38deg);
+}
+
+/* The impact does lift off, so the explosion is not left lying flat. */
+.board-stage .billboard-impact {
+  transform: rotateX(-38deg) translateZ(16px);
+}
+
+/* Shake when a hit lands. Short and sharp, not an earthquake. */
+@keyframes board-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  20% {
+    transform: translate3d(-4px, 2px, 0);
+  }
+  40% {
+    transform: translate3d(4px, -2px, 0);
+  }
+  60% {
+    transform: translate3d(-3px, -1px, 0);
+  }
+  80% {
+    transform: translate3d(2px, 1px, 0);
+  }
+}
+
+.shake-hit {
+  animation: board-shake 320ms ease-in-out;
+}
+.shake-sunk {
+  animation: board-shake 520ms ease-in-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

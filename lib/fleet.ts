@@ -1,25 +1,25 @@
 import type { ShipId } from './types';
 
-/** Metadatos de un barco de la flota. */
+/** Metadata for one ship of the fleet. */
 export interface ShipDef {
   id: ShipId;
-  /** Nombre del barco, tal y como se muestra al hundirlo. */
+  /** Ship name, as shown when it is sunk. */
   name: string;
-  /** Tripulación a la que pertenece. */
+  /** Crew it belongs to. */
   crew: string;
-  /** Casillas que ocupa. */
+  /** Cells it occupies. */
   size: number;
-  /** Frase corta para la micro-celebración al hundirlo. */
+  /** Short line for the micro-celebration when it sinks. */
   tagline: string;
-  /** Color con el que se identifica el barco en el tablero y en las listas. */
+  /** Colour that identifies the ship on the board and in the fleet lists. */
   color: string;
-  /** Nombre corto, para el rótulo sobre el tablero: el completo no cabe. */
+  /** Short name for the board label: the full one does not fit. */
   short: string;
 }
 
 /**
- * Flota clásica de Hundir la Flota (5-4-3-3-2) con temática One Piece.
- * El orden es el de colocación por defecto: de mayor a menor.
+ * The classic Battleship fleet (5-4-3-3-2) with a One Piece theme.
+ * Ordered as they are placed by default: largest first.
  */
 export const FLEET: readonly ShipDef[] = [
   {
@@ -71,16 +71,13 @@ export const FLEET: readonly ShipDef[] = [
 
 const BY_ID = new Map<ShipId, ShipDef>(FLEET.map((s) => [s.id, s]));
 
-/** Devuelve la definición de un barco, o `undefined` si el id no existe. */
+/** Returns a ship definition, or `undefined` if the id is unknown. */
 export function getShip(id: ShipId): ShipDef | undefined {
   return BY_ID.get(id);
 }
 
-/** Número total de casillas ocupadas por la flota completa (17). */
+/** Total cells occupied by the whole fleet (17). */
 export const TOTAL_SHIP_CELLS = FLEET.reduce((n, s) => n + s.size, 0);
 
-/** Tamaño del barco más pequeño; lo usa la IA para la caza por paridad. */
-export const MIN_SHIP_SIZE = FLEET.reduce(
-  (n, s) => Math.min(n, s.size),
-  Number.POSITIVE_INFINITY,
-);
+/** Size of the smallest ship; the AI uses it for parity hunting. */
+export const MIN_SHIP_SIZE = FLEET.reduce((n, s) => Math.min(n, s.size), Number.POSITIVE_INFINITY);
