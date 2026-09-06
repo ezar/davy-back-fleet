@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { FLEET, getShip } from '@/lib/fleet';
+import { FLEET } from '@/lib/fleet';
 import {
   canPlace,
   cellKey,
@@ -34,8 +34,18 @@ interface Held {
 /** Ancla resultante de soltar el barco sobre `cell` habiéndolo agarrado por `grabOffset`. */
 function anchorFor(cell: Cell, held: Held): Placement {
   return held.orientation === 'horizontal'
-    ? { shipId: held.shipId, row: cell.row, col: cell.col - held.grabOffset, orientation: held.orientation }
-    : { shipId: held.shipId, row: cell.row - held.grabOffset, col: cell.col, orientation: held.orientation };
+    ? {
+        shipId: held.shipId,
+        row: cell.row,
+        col: cell.col - held.grabOffset,
+        orientation: held.orientation,
+      }
+    : {
+        shipId: held.shipId,
+        row: cell.row - held.grabOffset,
+        col: cell.col,
+        orientation: held.orientation,
+      };
 }
 
 function cellFromPointer(x: number, y: number): Cell | null {
@@ -51,12 +61,10 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
   const [hover, setHover] = useState<Cell | null>(null);
 
   const placedIds = useMemo(() => new Set(placements.map((p) => p.shipId)), [placements]);
-  const pending = FLEET.filter((ship) => !placedIds.has(ship.id));
 
   /** Vista previa del barco en la mano sobre la celda apuntada. */
   const previewPlacement = held && hover ? anchorFor(hover, held) : null;
   const previewValid = previewPlacement ? canPlace(placements, previewPlacement) : true;
-  const preview = previewPlacement ? placementCells(previewPlacement) : [];
 
   const drop = useCallback(
     (cell: Cell | null) => {
@@ -77,10 +85,7 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
           ...held,
           orientation: held.orientation === 'horizontal' ? 'vertical' : 'horizontal',
         };
-        const options = [
-          anchorFor(cell, flipped),
-          anchorFor(cell, { ...flipped, grabOffset: 0 }),
-        ];
+        const options = [anchorFor(cell, flipped), anchorFor(cell, { ...flipped, grabOffset: 0 })];
         settle(options.find((option) => canPlace(rest, option)) ?? null);
         return;
       }
@@ -116,7 +121,7 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
       return;
     }
 
-    // Si no, se coloca el barco que estuviera seleccionado en el muelle.
+    // Si no, se coloca el barco que estuviera seleccionado en la lista.
     if (held && !held.dragging) {
       setHover(cell);
       drop(cell);
@@ -134,15 +139,12 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
     drop(cellFromPointer(event.clientX, event.clientY));
   };
 
-  /** Rota el barco en la mano, o el último colocado si no hay ninguno. */
-  const rotate = () => {
-    if (held) {
-      setHeld({
-        ...held,
-        orientation: held.orientation === 'horizontal' ? 'vertical' : 'horizontal',
-      });
-      return;
-    }
+  const rotateHeld = () => {
+    if (!held) return;
+    setHeld({
+      ...held,
+      orientation: held.orientation === 'horizontal' ? 'vertical' : 'horizontal',
+    });
   };
 
   return (
@@ -154,43 +156,69 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
         onPointerCancel={() => drop(null)}
         className="touch-none"
       >
-        <PlacementBoard placements={placements} preview={preview} previewValid={previewValid} />
+        <Board
+          variant="own"
+          shots={[]}
+          placements={placements}
+          previewPlacement={previewPlacement}
+          previewValid={previewValid}
+        />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => onChange(randomFleet())}
           disabled={disabled}
-          className="rounded-lg bg-gold px-3 py-2 text-sm font-bold text-abyss shadow-plank transition hover:brightness-110 disabled:opacity-40"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gold px-3 py-3 text-sm font-bold text-abyss shadow-plank transition hover:brightness-110 disabled:opacity-40"
         >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-[17px] w-[17px]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M20 5v5h-5M4 19v-5h5" />
+            <path d="M19.5 9A8 8 0 0 0 5.6 6.6M4.5 15a8 8 0 0 0 13.9 2.4" />
+          </svg>
           Colocación aleatoria
         </button>
-        <button
-          type="button"
-          onClick={() => onChange([])}
-          disabled={disabled || placements.length === 0}
-          className="rounded-lg border border-foam/20 px-3 py-2 text-sm font-semibold text-foam/80 transition hover:border-foam/40 disabled:opacity-40"
-        >
-          Vaciar
-        </button>
-        {held && (
+        {held ? (
           <button
             type="button"
-            onClick={rotate}
-            className="rounded-lg border border-gold/60 px-3 py-2 text-sm font-semibold text-gold"
+            onClick={rotateHeld}
+            className="rounded-xl border border-gold/60 px-4 py-3 text-sm font-bold text-gold"
           >
-            Rotar ({held.orientation === 'horizontal' ? 'horizontal' : 'vertical'})
+            Rotar
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            disabled={disabled || placements.length === 0}
+            className="rounded-xl border border-foam/20 px-4 py-3 text-sm font-bold text-foam/80 transition hover:border-foam/40 disabled:opacity-40"
+          >
+            Vaciar
           </button>
         )}
       </div>
 
-      <Dock
-        pending={pending.map((ship) => ship.id)}
+      <FleetChecklist
+        placedIds={placedIds}
         heldId={held?.shipId ?? null}
         disabled={disabled}
         onSelect={(shipId) =>
-          setHeld({ shipId, orientation: 'horizontal', grabOffset: 0, origin: null, dragging: false })
+          setHeld({
+            shipId,
+            orientation: 'horizontal',
+            grabOffset: 0,
+            origin: null,
+            dragging: false,
+          })
         }
         onAutoPlace={(shipId) => {
           const placement = randomPlacementFor(shipId, placements);
@@ -198,84 +226,79 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
         }}
       />
 
-      <p className="text-xs leading-relaxed text-foam/50">
-        Arrastra un barco para moverlo y tócalo sin arrastrar para girarlo. Los barcos no pueden
-        tocarse entre sí, ni siquiera en diagonal.
+      <p className="text-xs leading-relaxed text-foam/45">
+        Arrastra un barco para moverlo y tócalo sin arrastrar para girarlo. No pueden tocarse entre
+        sí, ni en diagonal.
       </p>
     </div>
   );
 }
 
-/** Tablero de colocación: cada casilla lleva `data-cell` para el arrastre. */
-function PlacementBoard({
-  placements,
-  preview,
-  previewValid,
-}: {
-  placements: Placement[];
-  preview: Cell[];
-  previewValid: boolean;
-}) {
-  return (
-    <Board
-      variant="own"
-      shots={[]}
-      placements={placements}
-      preview={preview}
-      previewValid={previewValid}
-    />
-  );
-}
-
-/** Muelle con los barcos que aún no están en el tablero. */
-function Dock({
-  pending,
+/**
+ * La flota entera con su estado. Sustituye al muelle: de un vistazo se ve
+ * qué queda por colocar, y los pendientes se seleccionan para soltarlos.
+ */
+function FleetChecklist({
+  placedIds,
   heldId,
   disabled,
   onSelect,
   onAutoPlace,
 }: {
-  pending: ShipId[];
+  placedIds: Set<ShipId>;
   heldId: ShipId | null;
   disabled: boolean;
   onSelect: (shipId: ShipId) => void;
   onAutoPlace: (shipId: ShipId) => void;
 }) {
-  if (pending.length === 0) {
-    return (
-      <p className="rounded-lg border border-gold/30 bg-gold/10 px-3 py-2 text-sm text-gold">
-        Flota completa. ¡Lista para zarpar!
-      </p>
-    );
-  }
-
   return (
-    <div className="space-y-2">
-      <h3 className="text-xs font-bold uppercase tracking-widest text-foam/50">En el muelle</h3>
-      <ul className="flex flex-wrap gap-2">
-        {pending.map((shipId) => {
-          const ship = getShip(shipId);
-          if (!ship) return null;
+    <div>
+      <div className="mb-1 flex items-baseline justify-between">
+        <h3 className="text-[0.62rem] font-bold uppercase tracking-[0.22em] text-foam/45">
+          Tu flota
+        </h3>
+        <span className="text-xs font-bold text-gold">
+          {placedIds.size} de {FLEET.length} colocados
+        </span>
+      </div>
+      <ul className="flex flex-col">
+        {FLEET.map((ship) => {
+          const placed = placedIds.has(ship.id);
+          const selected = heldId === ship.id;
           return (
-            <li key={shipId}>
+            <li key={ship.id}>
               <button
                 type="button"
-                disabled={disabled}
-                onClick={() => onSelect(shipId)}
-                onDoubleClick={() => onAutoPlace(shipId)}
+                disabled={disabled || placed}
+                onClick={() => onSelect(ship.id)}
+                onDoubleClick={() => onAutoPlace(ship.id)}
                 className={[
-                  'rounded-lg border px-3 py-2 text-left transition',
-                  heldId === shipId
-                    ? 'border-gold bg-gold/20 shadow-glow'
-                    : 'border-foam/15 bg-hull/60 hover:border-gold/50',
+                  'flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-xs transition',
+                  selected ? 'bg-gold/15' : '',
+                  placed ? 'cursor-default' : 'cursor-pointer hover:bg-foam/5',
                 ].join(' ')}
               >
-                {/* SVG local y diminuto: next/image no aporta nada aquí. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={ship.art} alt="" width={120} height={96} className="mb-1 h-6 w-auto" />
-                <span className="block text-sm font-bold">{ship.name}</span>
-                <span className="block text-[0.65rem] uppercase tracking-wide text-foam/50">
-                  {ship.size} casillas · {ship.crew}
+                <span
+                  aria-hidden
+                  className="h-2 w-2 shrink-0 rounded-[2px]"
+                  style={{ background: ship.color }}
+                />
+                <span
+                  className={[
+                    'flex-1 truncate text-left font-bold',
+                    placed ? 'text-foam/80' : 'text-gold',
+                  ].join(' ')}
+                >
+                  {ship.name}
+                </span>
+                <span className="text-[0.65rem] font-bold text-foam/50">{ship.size}</span>
+                <span
+                  className={[
+                    'w-[4.5rem] text-right text-[0.6rem] font-bold uppercase tracking-[0.12em]',
+                    placed ? 'text-foam/35' : 'text-gold',
+                  ].join(' ')}
+                >
+                  {placed ? 'Colocado' : 'Colócalo'}
                 </span>
               </button>
             </li>

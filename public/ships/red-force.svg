@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 96" role="img" aria-label="red-force">
-  <title>red-force</title>
-  <path d="M18 72V22" stroke="#e2542c" stroke-width="3" stroke-linecap="round"/><path d="M18 26q22 14 0 30z" fill="#e2542c" opacity="0.85"/><path d="M18 30q-16 10 0 22z" fill="#e2542c" opacity="0.55"/>
-  <path d="M78 34c4-8 14-8 18 0z" fill="#e2542c"/>
-  <path d="M8 74h100l-12 16H20z" fill="#e2542c"/>
-  <path d="M8 74h100" stroke="#e2542c" stroke-width="4" stroke-linecap="round"/>
-</svg>

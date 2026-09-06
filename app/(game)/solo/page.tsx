@@ -1,13 +1,14 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect } from 'react';
-import { Board } from '@/components/Board';
-import { FleetStatus } from '@/components/FleetStatus';
+import { CombatView, GameHeader } from '@/components/CombatView';
 import { PlacementEditor } from '@/components/PlacementEditor';
+import { ResultScreen } from '@/components/ResultScreen';
 import { SunkBanner } from '@/components/SunkBanner';
 import { FLEET } from '@/lib/fleet';
 import { useGameStore } from '@/store/useGameStore';
+
+const OPPONENT = 'la IA';
 
 export default function SoloPage() {
   const {
@@ -35,118 +36,69 @@ export default function SoloPage() {
     return <main className="p-6 text-center text-foam/60">Preparando los mares…</main>;
   }
 
+  const missing = FLEET.length - playerFleet.length;
+
   return (
-    <main className="mx-auto w-full max-w-md space-y-6 px-4 py-6">
-      <header className="flex items-center justify-between gap-3">
-        <Link href="/" className="text-xs font-semibold text-foam/50 hover:text-foam">
-          ← Inicio
-        </Link>
-        <h1 className="font-display text-lg font-black">
-          Contra la <span className="text-gold">IA</span>
-        </h1>
-        <button
-          type="button"
-          onClick={newGame}
-          className="text-xs font-semibold text-foam/50 hover:text-foam"
-        >
-          Nueva partida
-        </button>
-      </header>
+    <main className="mx-auto w-full max-w-md space-y-5 px-4 py-5">
+      <GameHeader
+        right={
+          <button
+            type="button"
+            onClick={newGame}
+            className="text-xs font-semibold text-foam/50 hover:text-foam"
+          >
+            Nueva partida
+          </button>
+        }
+      />
 
       {phase === 'placing' && (
         <section className="space-y-4">
-          <h2 className="font-display text-xl font-black">Coloca tu flota</h2>
+          <div>
+            <h1 className="font-display text-[1.6rem] font-black tracking-[0.03em]">
+              Coloca tu flota
+            </h1>
+            <p className="mt-1 text-xs text-foam/50">
+              Contra la IA. Quien acierta repite turno, así que el primer impacto vale doble.
+            </p>
+          </div>
           <PlacementEditor placements={playerFleet} onChange={setPlayerFleet} />
           <button
             type="button"
             onClick={startBattle}
-            disabled={playerFleet.length !== FLEET.length}
-            className="w-full rounded-xl bg-gold px-4 py-3 font-display font-black text-abyss shadow-plank transition hover:brightness-110 disabled:opacity-40"
+            disabled={missing > 0}
+            className="h-[54px] w-full rounded-xl bg-gold font-display text-base font-black tracking-[0.07em] text-abyss shadow-plank transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-foam/10 disabled:text-foam/40"
           >
-            {playerFleet.length === FLEET.length
-              ? '¡A la batalla!'
-              : `Faltan ${FLEET.length - playerFleet.length} barcos`}
+            {missing === 0 ? '¡A LA BATALLA!' : `FALTAN ${missing} BARCOS`}
           </button>
         </section>
       )}
 
-      {(phase === 'battle' || phase === 'finished') && (
-        <>
-          <StatusBar phase={phase} turn={turn} winner={winner} aiThinking={aiThinking} />
+      {phase === 'battle' && (
+        <CombatView
+          opponentName={OPPONENT}
+          yourTurn={turn === 'player' && !aiThinking}
+          waitingLabel="La IA está apuntando…"
+          enemyShots={shotsAtAi}
+          ownShots={shotsAtPlayer}
+          ownPlacements={playerFleet}
+          onShoot={shoot}
+          shootDisabled={turn !== 'player' || aiThinking}
+        />
+      )}
 
-          <section className="space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gold/80">
-              Flota enemiga
-            </h2>
-            <Board
-              variant="enemy"
-              shots={shotsAtAi}
-              onCellClick={shoot}
-              disabled={phase === 'finished' || turn !== 'player' || aiThinking}
-            />
-            <FleetStatus shots={shotsAtAi} title="Barcos de la IA" />
-          </section>
-
-          <section className="space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-foam/50">Tu flota</h2>
-            <Board variant="own" shots={shotsAtPlayer} placements={playerFleet} />
-            <FleetStatus shots={shotsAtPlayer} title="Tus barcos" />
-          </section>
-
-          {phase === 'finished' && (
-            <button
-              type="button"
-              onClick={newGame}
-              className="w-full rounded-xl bg-gold px-4 py-3 font-display font-black text-abyss shadow-plank"
-            >
-              Otra partida
-            </button>
-          )}
-        </>
+      {phase === 'finished' && (
+        <ResultScreen
+          outcome={winner === 'player' ? 'won' : 'lost'}
+          opponentName={OPPONENT}
+          yourShots={shotsAtAi}
+          incomingShots={shotsAtPlayer}
+          onRestart={newGame}
+        />
       )}
 
       <SunkBanner shipId={lastSunkByPlayer} />
       <SunkBanner shipId={lastSunkByAi} byOpponent />
     </main>
-  );
-}
-
-function StatusBar({
-  phase,
-  turn,
-  winner,
-  aiThinking,
-}: {
-  phase: string;
-  turn: 'player' | 'ai';
-  winner: 'player' | 'ai' | null;
-  aiThinking: boolean;
-}) {
-  if (phase === 'finished') {
-    return (
-      <p
-        className={[
-          'rounded-xl border px-4 py-3 text-center font-display text-lg font-black',
-          winner === 'player'
-            ? 'border-gold/60 bg-gold/15 text-gold'
-            : 'border-blood/60 bg-blood/25 text-jolly',
-        ].join(' ')}
-      >
-        {winner === 'player' ? '¡Rey de los piratas!' : 'Tu flota descansa en el fondo'}
-      </p>
-    );
-  }
-
-  return (
-    <p
-      aria-live="polite"
-      className="rounded-xl border border-foam/10 bg-hull/50 px-4 py-2 text-center text-sm"
-    >
-      {turn === 'player' && !aiThinking ? (
-        <span className="font-bold text-gold">Tu turno: dispara</span>
-      ) : (
-        <span className="text-foam/60">La IA está apuntando…</span>
-      )}
-    </p>
   );
 }

@@ -1,6 +1,22 @@
 import type { Metadata, Viewport } from 'next';
+import { Cinzel, Karla } from 'next/font/google';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
 import './globals.css';
+
+/** Cinzel para titulares (grabado, marino); Karla para texto. */
+const cinzel = Cinzel({
+  subsets: ['latin'],
+  weight: ['600', '800', '900'],
+  variable: '--font-display',
+  display: 'swap',
+});
+
+const karla = Karla({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-body',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Davy Back Fleet',
@@ -19,7 +35,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" className={`${cinzel.variable} ${karla.variable}`}>
       <body>
         {children}
         <ServiceWorkerRegistrar />

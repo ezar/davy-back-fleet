@@ -107,13 +107,19 @@ disparos de media frente a los ~45 de un jugador que juegue bien: un rival asequ
 - Colocación manual y aleatoria desde la v1: arrastra un barco para moverlo, tócalo sin
   arrastrar para girarlo, o pulsa "Colocación aleatoria" tantas veces como quieras.
 
-## Pendiente de Claude Design
+## Diseño
 
-Los tokens de diseño (colores, tipografías, sombras) están centralizados en
-`tailwind.config.ts`: cambiarlos ahí repinta todo el juego. Las siluetas de
-`public/ships/*.svg` son marcadores de posición generados a mano y están pensadas para
-sustituirse por las ilustraciones definitivas sin tocar código: `lib/fleet.ts` es quien
-mapea cada barco con su imagen.
+La maquetación salió de Claude Design y está aplicada. Los tokens (colores,
+tipografías, sombras) siguen centralizados en `tailwind.config.ts`: cambiarlos ahí
+repinta todo el juego.
+
+- **Tipografía**: Cinzel para titulares, Karla para texto, cargadas con `next/font`
+  (auto-hospedadas, sin petición a Google en tiempo de ejecución).
+- **Cada barco tiene su color** (`lib/fleet.ts`), y con él se pinta en el tablero, en
+  las listas de flota y en su silueta. Un rótulo de 7 px sobre una casilla de 31 px no
+  se lee; el color sí.
+- **Las siluetas** son un componente SVG (`components/ShipSilhouette.tsx`) que se colorea
+  solo: el número de mástiles crece con el tamaño del barco.
 
 ## Fuera de alcance de la v1
 

@@ -20,8 +20,8 @@ const config: Config = {
         jolly: '#f5f0e6',
       },
       fontFamily: {
-        display: ['"Trebuchet MS"', 'Verdana', 'sans-serif'],
-        body: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        display: ['var(--font-display)', 'Georgia', 'Times New Roman', 'serif'],
+        body: ['var(--font-body)', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
       boxShadow: {
         plank: '0 2px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)',

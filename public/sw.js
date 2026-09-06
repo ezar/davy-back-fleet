@@ -30,7 +30,7 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return;
 
   // Estáticos: primero la caché, que no cambian sin cambiar de URL.
-  if (url.pathname.startsWith('/_next/static') || url.pathname.startsWith('/icons') || url.pathname.startsWith('/ships')) {
+  if (url.pathname.startsWith('/_next/static') || url.pathname.startsWith('/icons')) {
     event.respondWith(
       caches.match(request).then(
         (hit) =>

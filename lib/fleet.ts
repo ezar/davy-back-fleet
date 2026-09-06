@@ -11,8 +11,10 @@ export interface ShipDef {
   size: number;
   /** Frase corta para la micro-celebración al hundirlo. */
   tagline: string;
-  /** Ruta a la ilustración en /public/ships. */
-  art: string;
+  /** Color con el que se identifica el barco en el tablero y en las listas. */
+  color: string;
+  /** Nombre corto, para el rótulo sobre el tablero: el completo no cabe. */
+  short: string;
 }
 
 /**
@@ -26,7 +28,8 @@ export const FLEET: readonly ShipDef[] = [
     crew: 'Sombrero de Paja',
     size: 5,
     tagline: '¡El león que surca los mares!',
-    art: '/ships/thousand-sunny.svg',
+    color: '#f2b134',
+    short: 'Sunny',
   },
   {
     id: 'moby-dick',
@@ -34,7 +37,8 @@ export const FLEET: readonly ShipDef[] = [
     crew: 'Barbablanca',
     size: 4,
     tagline: 'El buque del hombre más fuerte del mundo.',
-    art: '/ships/moby-dick.svg',
+    color: '#e8f2f8',
+    short: 'Moby',
   },
   {
     id: 'going-merry',
@@ -42,7 +46,8 @@ export const FLEET: readonly ShipDef[] = [
     crew: 'Sombrero de Paja (original)',
     size: 3,
     tagline: 'Gracias por traernos hasta aquí.',
-    art: '/ships/going-merry.svg',
+    color: '#c9d94f',
+    short: 'Merry',
   },
   {
     id: 'oro-jackson',
@@ -50,7 +55,8 @@ export const FLEET: readonly ShipDef[] = [
     crew: 'Gol D. Roger',
     size: 3,
     tagline: 'El barco que llegó a Laugh Tale.',
-    art: '/ships/oro-jackson.svg',
+    color: '#d8b45a',
+    short: 'Oro',
   },
   {
     id: 'red-force',
@@ -58,7 +64,8 @@ export const FLEET: readonly ShipDef[] = [
     crew: 'Shanks',
     size: 2,
     tagline: 'Rápido, rojo y temido en los cuatro mares.',
-    art: '/ships/red-force.svg',
+    color: '#e2542c',
+    short: 'Red',
   },
 ] as const;
 

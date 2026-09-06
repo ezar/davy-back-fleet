@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Board } from '@/components/Board';
-import { FleetStatus } from '@/components/FleetStatus';
+import { CombatView, GameHeader } from '@/components/CombatView';
 import { PlacementEditor } from '@/components/PlacementEditor';
+import { ResultScreen } from '@/components/ResultScreen';
 import { SunkBanner } from '@/components/SunkBanner';
 import { useRoom } from '@/hooks/useRoom';
 import { FLEET } from '@/lib/fleet';
@@ -41,68 +41,63 @@ export default function RoomPage({ params }: { params: { code: string } }) {
     return <main className="p-10 text-center text-foam/60">Conectando con la sala…</main>;
   }
 
+  const opponentName = view.opponent.name ?? 'tu rival';
+  const missing = FLEET.length - draft.length;
+
   return (
-    <main className="mx-auto w-full max-w-md space-y-6 px-4 py-6">
-      <header className="flex items-center justify-between gap-3">
-        <Link href="/" className="text-xs font-semibold text-foam/50 hover:text-foam">
-          ← Inicio
-        </Link>
-        <RoomCode code={code} />
-      </header>
+    <main className="mx-auto w-full max-w-md space-y-5 px-4 py-5">
+      <GameHeader right={<RoomCode code={code} />} />
 
       {view.phase === 'waiting' && <WaitingForRival code={code} />}
 
       {(view.phase === 'waiting' || view.phase === 'placing') && !view.you.ready && (
         <section className="space-y-4">
-          <h2 className="font-display text-xl font-black">Coloca tu flota</h2>
+          <div>
+            <h1 className="font-display text-[1.6rem] font-black tracking-[0.03em]">
+              Coloca tu flota
+            </h1>
+            <p className="mt-1 text-xs text-foam/50">
+              Solo tú ves este tablero. Quien acierta repite turno.
+            </p>
+          </div>
           <PlacementEditor placements={draft} onChange={setDraft} disabled={busy} />
           <button
             type="button"
             onClick={() => placeFleet(draft)}
-            disabled={draft.length !== FLEET.length || busy}
-            className="w-full rounded-xl bg-gold px-4 py-3 font-display font-black text-abyss shadow-plank transition hover:brightness-110 disabled:opacity-40"
+            disabled={missing > 0 || busy}
+            className="h-[54px] w-full rounded-xl bg-gold font-display text-base font-black tracking-[0.07em] text-abyss shadow-plank transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-foam/10 disabled:text-foam/40"
           >
-            {draft.length === FLEET.length
-              ? 'Confirmar flota'
-              : `Faltan ${FLEET.length - draft.length} barcos`}
+            {missing === 0 ? 'CONFIRMAR FLOTA' : `FALTAN ${missing} BARCOS`}
           </button>
         </section>
       )}
 
       {view.phase === 'placing' && view.you.ready && (
-        <p className="rounded-xl border border-foam/10 bg-hull/50 px-4 py-6 text-center text-sm text-foam/70">
-          Flota lista. Esperando a que {view.opponent.name ?? 'tu rival'} coloque la suya…
+        <p className="rounded-xl border border-foam/10 bg-hull/50 px-4 py-8 text-center text-sm text-foam/70">
+          Flota lista. Esperando a que {opponentName} coloque la suya…
         </p>
       )}
 
-      {(view.phase === 'battle' || view.phase === 'finished') && (
-        <>
-          <TurnBar
-            phase={view.phase}
-            yourTurn={view.yourTurn}
-            outcome={view.outcome}
-            opponentName={view.opponent.name}
-          />
+      {view.phase === 'battle' && (
+        <CombatView
+          opponentName={opponentName}
+          yourTurn={view.yourTurn}
+          waitingLabel={`Turno de ${opponentName}…`}
+          enemyShots={view.opponent.outgoingShots}
+          ownShots={view.you.incomingShots}
+          ownPlacements={view.you.placements}
+          onShoot={shoot}
+          shootDisabled={!view.yourTurn || busy}
+        />
+      )}
 
-          <section className="space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gold/80">
-              Flota de {view.opponent.name ?? 'tu rival'}
-            </h2>
-            <Board
-              variant="enemy"
-              shots={view.opponent.outgoingShots}
-              onCellClick={shoot}
-              disabled={!view.yourTurn || busy || view.phase === 'finished'}
-            />
-            <FleetStatus shots={view.opponent.outgoingShots} title="Barcos enemigos" />
-          </section>
-
-          <section className="space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-foam/50">Tu flota</h2>
-            <Board variant="own" shots={view.you.incomingShots} placements={view.you.placements} />
-            <FleetStatus shots={view.you.incomingShots} title="Tus barcos" />
-          </section>
-        </>
+      {view.phase === 'finished' && view.outcome && (
+        <ResultScreen
+          outcome={view.outcome}
+          opponentName={opponentName}
+          yourShots={view.opponent.outgoingShots}
+          incomingShots={view.you.incomingShots}
+        />
       )}
 
       <SunkBanner shipId={sunkByYou} />
@@ -133,9 +128,22 @@ function RoomCode({ code }: { code: string }) {
     <button
       type="button"
       onClick={share}
-      className="rounded-lg border border-gold/50 px-3 py-1.5 font-mono text-sm tracking-[0.25em] text-gold transition hover:bg-gold/10"
+      className="flex items-center gap-2 rounded-lg border border-gold/45 px-3 py-1.5 font-mono text-sm tracking-[0.24em] text-gold transition hover:bg-gold/10"
     >
       {copied ? '¡Copiado!' : code}
+      <svg
+        viewBox="0 0 24 24"
+        className="h-[14px] w-[14px] shrink-0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M9 9h11v11H9z" />
+        <path d="M15 5H4v11" />
+      </svg>
     </button>
   );
 }
@@ -149,45 +157,5 @@ function WaitingForRival({ code }: { code: string }) {
         tu flota mientras tanto.
       </p>
     </section>
-  );
-}
-
-function TurnBar({
-  phase,
-  yourTurn,
-  outcome,
-  opponentName,
-}: {
-  phase: string;
-  yourTurn: boolean;
-  outcome: 'won' | 'lost' | null;
-  opponentName: string | null;
-}) {
-  if (phase === 'finished') {
-    return (
-      <p
-        className={[
-          'rounded-xl border px-4 py-3 text-center font-display text-lg font-black',
-          outcome === 'won'
-            ? 'border-gold/60 bg-gold/15 text-gold'
-            : 'border-blood/60 bg-blood/25 text-jolly',
-        ].join(' ')}
-      >
-        {outcome === 'won' ? '¡Rey de los piratas!' : 'Tu flota descansa en el fondo'}
-      </p>
-    );
-  }
-
-  return (
-    <p
-      aria-live="polite"
-      className="rounded-xl border border-foam/10 bg-hull/50 px-4 py-2 text-center text-sm"
-    >
-      {yourTurn ? (
-        <span className="font-bold text-gold">Tu turno: dispara</span>
-      ) : (
-        <span className="text-foam/60">Turno de {opponentName ?? 'tu rival'}…</span>
-      )}
-    </p>
   );
 }

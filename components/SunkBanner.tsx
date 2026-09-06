@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { getShip } from '@/lib/fleet';
+import { ShipSilhouette } from './ShipSilhouette';
 import type { ShipId } from '@/lib/types';
 
 /**
@@ -49,15 +50,7 @@ export function SunkBanner({
             <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-gold">
               {byOpponent ? 'Has perdido un barco' : '¡Hundido!'}
             </p>
-            {/* SVG local y diminuto: next/image no aporta nada aquí. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={ship.art}
-              alt=""
-              width={120}
-              height={96}
-              className="mx-auto h-14 w-auto opacity-90"
-            />
+            <ShipSilhouette shipId={ship.id} className="mx-auto h-12 w-auto opacity-90" />
             <p className="mt-1 font-display text-lg font-black">{ship.name}</p>
             <p className="text-xs text-foam/70">{ship.crew}</p>
             <p className="mt-1 text-xs italic text-foam/50">{ship.tagline}</p>
