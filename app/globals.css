@@ -63,6 +63,25 @@ body {
   transform: rotateX(-38deg);
 }
 
+/* The ship keeps its own 3D context so its masts can stand up out of it. */
+.board-stage .ship-overlay {
+  transform-style: preserve-3d;
+}
+
+/*
+ * A mast: anchored by its foot at the point given inline, then pivoted
+ * upright out of the board plane by exactly the angle the board is tilted.
+ * The sprite is 100x150, hence the aspect ratio.
+ */
+.board-stage .mast {
+  display: block;
+  position: absolute;
+  aspect-ratio: 100 / 150;
+  transform: translate(-50%, -100%) rotateX(-38deg);
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+
 /* The impact does lift off, so the explosion is not left lying flat. */
 .board-stage .billboard-impact {
   transform: rotateX(-38deg) translateZ(16px);

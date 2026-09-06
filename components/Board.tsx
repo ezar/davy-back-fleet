@@ -2,9 +2,9 @@
 
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
-import { BoardShipArt } from './BoardShipArt';
+import { BoardShipArt, ShipRigArt, mastFractions } from './BoardShipArt';
 import { FLIGHT_MS, ImpactEffect } from './effects/ImpactEffect';
-import { getShip } from '@/lib/fleet';
+import { type ShipDef, getShip } from '@/lib/fleet';
 import { COLUMN_LABELS, ROW_LABELS, cellKey, placementCells } from '@/lib/gameLogic';
 import { type CellState, buildCellStates, sunkPlacements } from '@/lib/boardView';
 import type { Cell, Placement, ShipId, ShotLog, ShotOutcome, ShotResult } from '@/lib/types';
@@ -307,8 +307,11 @@ function ShipOverlay({
       className={[
         // Sunk goes above the impact markers (z-20): the wreck is the
         // information, and the red cells would otherwise hide it.
-        'pointer-events-none relative flex items-center justify-center',
-        sunk ? 'z-30' : 'z-10 overflow-hidden',
+        'ship-overlay pointer-events-none relative flex items-center justify-center',
+        sunk ? 'z-30' : 'z-10',
+        // `overflow-hidden` would flatten the 3D context and lay the masts
+        // back down on the water, so it is only for the flat view.
+        !sunk && !tilted ? 'overflow-hidden' : '',
         compact ? 'rounded-[3px]' : 'rounded-md',
         sunk ? '' : 'bg-gradient-to-br from-[#16405d] to-hull',
       ].join(' ')}
@@ -318,7 +321,13 @@ function ShipOverlay({
         <Wreck shipId={placement.shipId} size={ship.size} horizontal={horizontal} />
       ) : (
         <>
-          <BoardShipArt shipId={placement.shipId} vertical={!horizontal} sunk={false} />
+          <BoardShipArt
+            shipId={placement.shipId}
+            vertical={!horizontal}
+            sunk={false}
+            showSails={!tilted}
+          />
+          {tilted && <StandingRig ship={ship} horizontal={horizontal} />}
           {/* The colour stripe identifies the ship even when it is tiny. */}
           <span
             aria-hidden
@@ -330,6 +339,34 @@ function ShipOverlay({
         </>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * The masts, stood up out of the board plane in 2.5D.
+ *
+ * Each sits at its own mast position along the hull and pivots on its foot,
+ * so a ship pointing away from the camera shows its masts one behind the
+ * other, further ones higher up the board and so further away.
+ */
+function StandingRig({ ship, horizontal }: { ship: ShipDef; horizontal: boolean }) {
+  return (
+    <>
+      {mastFractions(ship.size).map((along, i) => (
+        <span
+          key={i}
+          aria-hidden
+          className="mast block"
+          style={
+            horizontal
+              ? { left: `${along * 100}%`, top: '50%', width: `${82 / ship.size}%` }
+              : { top: `${along * 100}%`, left: '50%', width: '82%' }
+          }
+        >
+          <ShipRigArt color={ship.color} />
+        </span>
+      ))}
+    </>
   );
 }
 
@@ -353,24 +390,31 @@ function Wreck({
   // The pivot is the break point, so the free end swings in proportion to
   // the length: at a fixed angle a five-cell ship would throw its halves
   // clean off the board. The longer the ship, the smaller the angle.
-  const tilt = 34 / size + 6;
+  const tilt = 24 / size + 5;
   const halves = horizontal
     ? [
-        { clip: 'inset(0 50% 0 0)', origin: '100% 50%', rotate: -tilt, x: -3 },
-        { clip: 'inset(0 0 0 50%)', origin: '0% 50%', rotate: tilt * 1.15, x: 3 },
+        { clip: 'inset(0 50% 0 0)', origin: '100% 50%', rotate: -tilt, x: -2 },
+        { clip: 'inset(0 0 0 50%)', origin: '0% 50%', rotate: tilt * 1.15, x: 2 },
       ]
     : [
-        { clip: 'inset(0 0 50% 0)', origin: '50% 100%', rotate: tilt, x: -3 },
-        { clip: 'inset(50% 0 0 0)', origin: '50% 0%', rotate: -tilt * 1.15, x: 3 },
+        { clip: 'inset(0 0 50% 0)', origin: '50% 100%', rotate: tilt, x: -2 },
+        { clip: 'inset(50% 0 0 0)', origin: '50% 0%', rotate: -tilt * 1.15, x: 2 },
       ];
 
   return (
     <>
+      {/* Dark water under the wreck. The cells beneath are painted red, and
+          without this the burnt hull was a red shape on a red square. */}
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.72 }}
+        className="absolute -inset-[2px] rounded-[4px] bg-abyss"
+      />
       {halves.map((half, i) => (
         <motion.span
           key={i}
           initial={{ rotate: 0, x: 0, y: 0, opacity: 1 }}
-          animate={{ rotate: half.rotate, x: half.x, y: 4, opacity: 0.82 }}
+          animate={{ rotate: half.rotate, x: half.x, y: 3, opacity: 0.95 }}
           transition={{ type: 'spring', stiffness: 70, damping: 11, delay: i * 0.06 }}
           style={{ clipPath: half.clip, transformOrigin: half.origin }}
           className="absolute inset-0"

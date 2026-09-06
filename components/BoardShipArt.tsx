@@ -36,6 +36,16 @@ const PLANK = '#c09562';
 const SAIL = '#f5edda';
 const RIG = '#160d05';
 
+/** Mixes a hex colour towards black. `amount` 0 leaves it, 1 turns it black. */
+function darken(hex: string, amount: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const channel = (shift: number) =>
+    Math.round(((n >> shift) & 0xff) * (1 - amount))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${channel(16)}${channel(8)}${channel(0)}`;
+}
+
 type Figurehead = 'lion' | 'whale' | 'sheep' | 'crown' | 'skull';
 
 const FIGUREHEADS: Record<ShipId, Figurehead> = {
@@ -46,14 +56,48 @@ const FIGUREHEADS: Record<ShipId, Figurehead> = {
   'red-force': 'skull',
 };
 
+/**
+ * Where the parts of a hull of `size` cells fall, in the drawing's own units.
+ * The standing rig needs the same mast positions as the deck below it, so
+ * the numbers live here rather than inside the drawing.
+ */
+function hullGeometry(size: number) {
+  const width = size * UNIT;
+  const stern = 7;
+  const bow = width - 4;
+  /* The same bow taper on every ship, so a two-cell sloop and a five-cell
+     galleon look like the same shipwright built them. */
+  const taper = Math.min(80, width * 0.36);
+  const taperStart = bow - taper;
+  const shoulder = stern + (taperStart - stern) * 0.3;
+  const masts = size >= 4 ? 3 : size >= 3 ? 2 : 1;
+  const mastXs = Array.from(
+    { length: masts },
+    (_, i) => shoulder + ((taperStart - shoulder) * (i + 0.5)) / masts,
+  );
+  return { width, stern, bow, taper, taperStart, shoulder, mastXs };
+}
+
+/** Mast positions as a fraction of the hull length, for the standing rig. */
+export function mastFractions(size: number): number[] {
+  const { width, mastXs } = hullGeometry(size);
+  return mastXs.map((x) => x / width);
+}
+
 export function BoardShipArt({
   shipId,
   vertical,
   sunk,
+  /**
+   * In 2.5D the rig is drawn standing up as a separate sprite, so the deck
+   * below must not carry a second set of sails lying flat.
+   */
+  showSails = true,
 }: {
   shipId: ShipId;
   vertical: boolean;
   sunk: boolean;
+  showSails?: boolean;
 }) {
   const ship = getShip(shipId);
   // Unique per instance: the wreck draws the same ship twice, and two
@@ -62,18 +106,12 @@ export function BoardShipArt({
 
   if (!ship) return null;
 
-  const width = ship.size * UNIT;
-  const trim = sunk ? '#8f2a1c' : ship.color;
-  const deck = sunk ? '#2a1a10' : DECK;
-  const stern = 7;
-  const bow = width - 4;
-  /* The same bow taper on every ship, so a two-cell sloop and a five-cell
-     galleon look like the same shipwright built them. */
-  const taper = Math.min(80, width * 0.36);
-  const taperStart = bow - taper;
-  const shoulder = stern + (taperStart - stern) * 0.3;
+  /* A wreck sits on cells painted red. Tinting it red too made it vanish
+     into them, so it keeps its own colour, burnt down rather than replaced. */
+  const trim = sunk ? darken(ship.color, 0.45) : ship.color;
+  const deck = sunk ? '#1b1006' : DECK;
+  const { width, stern, bow, taper, taperStart, shoulder, mastXs } = hullGeometry(ship.size);
   const transom = BEAM * 0.66;
-  const masts = ship.size >= 4 ? 3 : ship.size >= 3 ? 2 : 1;
   const gunPorts = Math.max(2, Math.round((taperStart - shoulder) / 26));
 
   // Hull from above: squared-off transom, full parallel midbody, and the
@@ -94,11 +132,6 @@ export function BoardShipArt({
   // and the rail is the only place the ship's colour shows in full.
   const deckPath = hullPath;
   const deckTransform = `translate(${width / 2} ${AXIS}) scale(0.955 0.76) translate(${-width / 2} ${-AXIS})`;
-
-  const mastXs = Array.from(
-    { length: masts },
-    (_, i) => shoulder + ((taperStart - shoulder) * (i + 0.5)) / masts,
-  );
 
   return (
     <svg
@@ -195,6 +228,11 @@ export function BoardShipArt({
             ))
           }
 
+          {sunk && (
+            // Scorched all the way along: a wreck is burnt, not just dark.
+            <path d={deckPath} transform={deckTransform} fill="#050201" opacity={0.55} />
+          )}
+
           <path d={deckPath} transform={deckTransform} fill={`url(#sheen-${uid})`} />
         </g>
 
@@ -223,33 +261,38 @@ export function BoardShipArt({
           const belly = 30 - i * 3;
           return (
             <g key={i}>
-              <path
-                d={`M${x} ${AXIS - half} Q${x + belly} ${AXIS}, ${x} ${AXIS + half} Q${x + belly * 0.3} ${AXIS}, ${x} ${AXIS - half} Z`}
-                fill={SAIL}
-                opacity={sunk ? 0.22 : 0.95}
-              />
-              {/* Shadow in the fold, so the sail has a windward and a lee side. */}
-              <path
-                d={`M${x} ${AXIS - half} Q${x + belly * 0.3} ${AXIS}, ${x} ${AXIS + half}`}
-                fill="none"
-                stroke="#0a1420"
-                strokeWidth={2}
-                opacity={sunk ? 0.2 : 0.3}
-              />
-              <path
-                d={`M${x} ${AXIS - half} Q${x + belly} ${AXIS}, ${x} ${AXIS + half}`}
-                fill="none"
-                stroke={trim}
-                strokeWidth={1.8}
-                opacity={sunk ? 0.4 : 0.9}
-              />
-              {/* Yard across the beam, and the mast where the two cross. */}
-              <path
-                d={`M${x} ${AXIS - half} V${AXIS + half}`}
-                stroke={RIG}
-                strokeWidth={2.8}
-                strokeLinecap="round"
-              />
+              {showSails && (
+                <>
+                  <path
+                    d={`M${x} ${AXIS - half} Q${x + belly} ${AXIS}, ${x} ${AXIS + half} Q${x + belly * 0.3} ${AXIS}, ${x} ${AXIS - half} Z`}
+                    fill={SAIL}
+                    opacity={sunk ? 0.22 : 0.95}
+                  />
+                  {/* Shadow in the fold, so the sail has a windward and a lee side. */}
+                  <path
+                    d={`M${x} ${AXIS - half} Q${x + belly * 0.3} ${AXIS}, ${x} ${AXIS + half}`}
+                    fill="none"
+                    stroke="#0a1420"
+                    strokeWidth={2}
+                    opacity={sunk ? 0.2 : 0.3}
+                  />
+                  <path
+                    d={`M${x} ${AXIS - half} Q${x + belly} ${AXIS}, ${x} ${AXIS + half}`}
+                    fill="none"
+                    stroke={trim}
+                    strokeWidth={1.8}
+                    opacity={sunk ? 0.4 : 0.9}
+                  />
+                  {/* Yard across the beam. */}
+                  <path
+                    d={`M${x} ${AXIS - half} V${AXIS + half}`}
+                    stroke={RIG}
+                    strokeWidth={2.8}
+                    strokeLinecap="round"
+                  />
+                </>
+              )}
+              {/* The mast where deck and rig meet, drawn either way. */}
               <circle cx={x} cy={AXIS} r={4.6} fill={RIG} />
               <circle cx={x} cy={AXIS} r={2} fill={trim} />
             </g>
@@ -265,9 +308,9 @@ export function BoardShipArt({
 /** Foam pushed aside by the stem: the ship is under way, not parked. */
 function Wake({ bow, beam }: { bow: number; beam: number }) {
   return (
-    <g fill="none" stroke={SAIL} strokeLinecap="round" opacity={0.28}>
-      <path d={`M${bow - 4} ${AXIS - 4} q16 -6 26 -${beam * 0.7}`} strokeWidth={3} />
-      <path d={`M${bow - 4} ${AXIS + 4} q16 6 26 ${beam * 0.7}`} strokeWidth={3} />
+    <g fill="none" stroke={SAIL} strokeLinecap="round" opacity={0.22}>
+      <path d={`M${bow - 4} ${AXIS - 4} q10 -4 15 -${beam * 0.42}`} strokeWidth={4.5} />
+      <path d={`M${bow - 4} ${AXIS + 4} q10 4 15 ${beam * 0.42}`} strokeWidth={4.5} />
     </g>
   );
 }
@@ -356,4 +399,62 @@ function Figure({
         </g>
       );
   }
+}
+
+/**
+ * The rig of one mast, drawn as an elevation to stand up on the tilted board.
+ *
+ * This is what makes 2.5D read as 2.5D: the hull stays flat on the water and
+ * the masts are separate sprites pivoted upright out of the board plane. One
+ * sprite per mast, so a ship pointing away from the camera shows its masts
+ * one behind the other instead of a rig spread sideways.
+ */
+export function ShipRigArt({ color }: { color: string }) {
+  // One sprite per mast, so the gradient id has to be unique per instance.
+  const canvas = `canvas-${useId().replace(/:/g, '')}`;
+
+  return (
+    <svg viewBox="0 0 100 150" className="h-full w-full overflow-visible" aria-hidden>
+      <defs>
+        {/* Lit from the left, so the canvas has a round to it. */}
+        <linearGradient id={canvas} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#f2e7d0" />
+          <stop offset="50%" stopColor="#ded1b4" />
+          <stop offset="100%" stopColor="#8d7c60" />
+        </linearGradient>
+      </defs>
+
+      {/* Shrouds, from the topsail yard down to the rail on both sides. */}
+      <g stroke={RIG} strokeWidth={1.8} opacity={0.5}>
+        <path d="M50 42 L18 148" />
+        <path d="M50 42 L82 148" />
+      </g>
+
+      {/* Mast, stepped on the deck. */}
+      <path d="M50 150 V16" stroke={RIG} strokeWidth={6} strokeLinecap="round" />
+
+      {/* Course. The sail stays narrower than the hull on purpose: the rail
+          underneath is what says which ship this is. */}
+      <path d="M8 82 H92" stroke={RIG} strokeWidth={4.5} strokeLinecap="round" />
+      <path d="M20 84 H80 V114 q-30 12 -60 0 Z" fill={`url(#${canvas})`} />
+      <g stroke="#7d6d52" strokeWidth={1.2} opacity={0.5}>
+        <path d="M20 84 H80" />
+        <path d="M20 100 q30 11 60 0" />
+        <path d="M40 84 V115" />
+        <path d="M60 84 V115" />
+      </g>
+
+      {/* Topsail. */}
+      <path d="M20 42 H80" stroke={RIG} strokeWidth={3.6} strokeLinecap="round" />
+      <path d="M30 44 H70 V66 q-20 8 -40 0 Z" fill={`url(#${canvas})`} />
+      <g stroke="#7d6d52" strokeWidth={1} opacity={0.5}>
+        <path d="M30 44 H70" />
+        <path d="M50 44 V68" />
+      </g>
+
+      {/* Pennant at the truck: the ship's colour, flying. */}
+      <path d="M50 16 q19 6 32 0 q-15 8 0 14 q-17 5 -32 -3 Z" fill={color} />
+      <circle cx="50" cy="16" r="4" fill={RIG} />
+    </svg>
+  );
 }
