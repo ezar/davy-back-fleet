@@ -28,6 +28,9 @@ npm run lint
 npm run build
 ```
 
+Estos cuatro comandos son los que ejecuta CI (`.github/workflows/ci.yml`) en cada
+push a `main` y en cada pull request.
+
 ## Cómo está montado
 
 | Capa | Tecnología |
