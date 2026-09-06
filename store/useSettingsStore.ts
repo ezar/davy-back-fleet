@@ -17,6 +17,7 @@ export type BoardView = 'flat' | 'tilted';
 const VIEW_KEY = 'dbf:view';
 const AI_KEY = 'dbf:ai';
 const RULES_KEY = 'dbf:rules';
+const ALERTS_KEY = 'dbf:alerts';
 
 function readStoredView(): BoardView {
   try {
@@ -46,6 +47,14 @@ function readStoredRules(): RoomRules {
   }
 }
 
+function readStoredAlerts(): boolean {
+  try {
+    return localStorage.getItem(ALERTS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 interface SettingsState {
   view: BoardView;
   /**
@@ -59,20 +68,32 @@ interface SettingsState {
    * changing this never alters a game already in progress.
    */
   rules: RoomRules;
+  /**
+   * Browser notifications when it is your turn. Off until asked for: it
+   * needs a permission the player has to grant from a gesture.
+   */
+  turnAlerts: boolean;
   /** Reads the stored preferences. Called from an effect, never during render. */
   hydrate: () => void;
   setView: (view: BoardView) => void;
   setAiStrategy: (strategy: HuntStrategy) => void;
   setRule: <K extends keyof RoomRules>(rule: K, value: RoomRules[K]) => void;
+  setTurnAlerts: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   view: 'tilted',
   aiStrategy: DEFAULT_HUNT_STRATEGY,
   rules: DEFAULT_RULES,
+  turnAlerts: false,
 
   hydrate: () =>
-    set({ view: readStoredView(), aiStrategy: readStoredStrategy(), rules: readStoredRules() }),
+    set({
+      view: readStoredView(),
+      aiStrategy: readStoredStrategy(),
+      rules: readStoredRules(),
+      turnAlerts: readStoredAlerts(),
+    }),
 
   setView: (view) => {
     set({ view });
@@ -90,6 +111,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       store(RULES_KEY, JSON.stringify(rules));
       return { rules };
     }),
+
+  setTurnAlerts: (enabled) => {
+    set({ turnAlerts: enabled });
+    store(ALERTS_KEY, enabled ? '1' : '0');
+  },
 }));
 
 function store(key: string, value: string): void {

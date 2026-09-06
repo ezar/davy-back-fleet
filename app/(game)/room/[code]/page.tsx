@@ -7,10 +7,12 @@ import { PlacementEditor } from '@/components/PlacementEditor';
 import { ResultScreen } from '@/components/ResultScreen';
 import { SunkBanner } from '@/components/SunkBanner';
 import { useRoom } from '@/hooks/useRoom';
+import { useTurnAlert } from '@/hooks/useTurnAlert';
 import { FLEET } from '@/lib/fleet';
 import { randomFleet } from '@/lib/gameLogic';
 import { normalizeRoomCode } from '@/lib/room';
 import { useAudioStore } from '@/store/useAudioStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import type { Placement } from '@/lib/types';
 
 export default function RoomPage({ params }: { params: { code: string } }) {
@@ -19,6 +21,16 @@ export default function RoomPage({ params }: { params: { code: string } }) {
     useRoom(code);
   const [draft, setDraft] = useState<Placement[]>([]);
   const unlockAudio = useAudioStore((state) => state.unlock);
+  const turnAlerts = useSettingsStore((state) => state.turnAlerts);
+  const hydrateSettings = useSettingsStore((state) => state.hydrate);
+
+  useEffect(() => {
+    hydrateSettings();
+  }, [hydrateSettings]);
+
+  // A remote game runs over minutes: without this you have to keep coming
+  // back to the tab to find out whether the other player has moved.
+  useTurnAlert(view, turnAlerts);
 
   // A starting fleet is rolled on the client so hydration is not broken, and
   // under the room's rules: the host may have allowed touching ships.

@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { RuleSwitches, Switch } from './RuleSwitches';
+import { notificationPermission, requestNotificationPermission } from '@/lib/notifications';
 import { useAudioStore } from '@/store/useAudioStore';
 import { type BoardView, useSettingsStore } from '@/store/useSettingsStore';
 
@@ -21,6 +22,9 @@ export function SettingsMenu({
   const aiStrategy = useSettingsStore((state) => state.aiStrategy);
   const setAiStrategy = useSettingsStore((state) => state.setAiStrategy);
   const hydrateView = useSettingsStore((state) => state.hydrate);
+  const turnAlerts = useSettingsStore((state) => state.turnAlerts);
+  const setTurnAlerts = useSettingsStore((state) => state.setTurnAlerts);
+  const [alertNote, setAlertNote] = useState<string | null>(null);
 
   const muted = useAudioStore((state) => state.muted);
   const toggleMuted = useAudioStore((state) => state.toggleMuted);
@@ -32,6 +36,35 @@ export function SettingsMenu({
     hydrateView();
     hydrateAudio();
   }, [hydrateView, hydrateAudio]);
+
+  /**
+   * Turning it on asks for permission right here, inside the tap: browsers
+   * refuse the request from anywhere else. If it is refused, the switch goes
+   * back to off rather than pretending it worked.
+   */
+  const toggleAlerts = async (enabled: boolean) => {
+    setAlertNote(null);
+    if (!enabled) {
+      setTurnAlerts(false);
+      return;
+    }
+    const permission = await requestNotificationPermission();
+    if (permission === 'granted') {
+      setTurnAlerts(true);
+      return;
+    }
+    setTurnAlerts(false);
+    setAlertNote(
+      permission === 'unsupported'
+        ? 'Este navegador no admite notificaciones.'
+        : 'Has bloqueado las notificaciones para esta página. Puedes permitirlas desde los ajustes del navegador.',
+    );
+  };
+
+  // Reflects a permission revoked from the browser's own settings.
+  useEffect(() => {
+    if (turnAlerts && notificationPermission() !== 'granted') setTurnAlerts(false);
+  }, [turnAlerts, setTurnAlerts]);
 
   // Close on an outside tap.
   useEffect(() => {
@@ -131,6 +164,30 @@ export function SettingsMenu({
                 <RuleSwitches />
                 <p className="mt-2 text-[0.65rem] leading-relaxed text-foam/30">
                   Se aplican a la siguiente partida.
+                </p>
+              </div>
+            )}
+
+            {!solo && (
+              <div className="mb-3 border-t border-foam/8 pt-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold text-foam/75">Avisarme del turno</span>
+                    <span className="block text-[0.65rem] leading-relaxed text-foam/40">
+                      Notificación del navegador cuando tu rival mueva.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={turnAlerts}
+                    label="Avisarme del turno"
+                    onChange={(enabled) => void toggleAlerts(enabled)}
+                  />
+                </div>
+                {alertNote && (
+                  <p className="mt-1.5 text-[0.65rem] leading-relaxed text-ember/80">{alertNote}</p>
+                )}
+                <p className="mt-1.5 text-[0.65rem] leading-relaxed text-foam/30">
+                  El título de la pestaña avisa igualmente, sin pedir permiso.
                 </p>
               </div>
             )}
