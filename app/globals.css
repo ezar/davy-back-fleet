@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-abyss text-foam font-body antialiased;
+  /* Resplandor de mar arriba, sangre abajo, y una retícula fina de carta náutica. */
+  background-image:
+    radial-gradient(130% 55% at 50% -6%, rgba(27, 79, 114, 0.55), rgba(4, 16, 29, 0) 62%),
+    radial-gradient(120% 45% at 50% 106%, rgba(140, 31, 31, 0.22), rgba(4, 16, 29, 0) 58%),
+    repeating-linear-gradient(0deg, rgba(232, 242, 248, 0.026) 0 1px, rgba(0, 0, 0, 0) 1px 44px),
+    repeating-linear-gradient(90deg, rgba(232, 242, 248, 0.026) 0 1px, rgba(0, 0, 0, 0) 1px 44px);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+/* El tablero nunca debe provocar scroll horizontal en el móvil. */
+.board-grid {
+  display: grid;
+  grid-template-columns: 1.15rem repeat(10, minmax(0, 1fr));
+  gap: 2px;
+  touch-action: manipulation;
+}
+
+/* Miniatura del tablero propio durante el combate: sin cabeceras. */
+.board-grid--compact {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
+.board-cell {
+  @apply relative aspect-square rounded-[3px] transition-colors duration-150;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
