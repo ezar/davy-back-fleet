@@ -11,6 +11,7 @@ const STATUS_BY_CODE: Record<RoomErrorCode, number> = {
   'invalid-cell': 400,
   'invalid-fleet': 400,
   'invalid-request': 400,
+  'multiplayer-unavailable': 503,
 };
 
 /** Traduce un error de reglas a una respuesta JSON; el resto, a un 500 sin filtrar detalles. */

@@ -18,8 +18,11 @@ cp .env.example .env.local   # y rellena las dos variables
 ```
 
 Sin credenciales y fuera de producción, las salas se guardan en memoria para poder
-desarrollar en local; en producción el arranque falla a propósito en vez de perder
-partidas en silencio.
+desarrollar en local; en producción el multijugador se apaga con un mensaje claro en vez
+de perder partidas en silencio (el modo contra la IA sigue funcionando).
+
+Para publicarlo: **[DEPLOY.md](DEPLOY.md)**. `GET /api/health` dice de un vistazo si el
+despliegue tiene el multijugador en condiciones.
 
 ```bash
 npm test         # 62 tests de lógica, IA y salas

@@ -76,7 +76,8 @@ export type RoomErrorCode =
   | 'cell-already-shot'
   | 'invalid-cell'
   | 'invalid-fleet'
-  | 'invalid-request';
+  | 'invalid-request'
+  | 'multiplayer-unavailable';
 
 /** Error de reglas de sala, con código traducible a HTTP. */
 export class RoomError extends Error {

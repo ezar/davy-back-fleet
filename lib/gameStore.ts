@@ -43,11 +43,17 @@ export interface RoomStore {
   claimSeat(code: string, seat: Seat, player: RoomPlayer, meta: RoomMeta): Promise<boolean>;
   /** Sobrescribe un asiento (y opcionalmente la meta) que ya es tuyo. */
   writeSeat(code: string, seat: Seat, player: RoomPlayer, meta: RoomMeta): Promise<void>;
+  /** Comprueba que el almacén responde. Lanza si no. */
+  ping(): Promise<void>;
 }
 
 /** Implementación sobre Upstash Redis (producción y previews de Vercel). */
 class RedisRoomStore implements RoomStore {
   constructor(private readonly redis: Redis) {}
+
+  async ping(): Promise<void> {
+    await this.redis.ping();
+  }
 
   async create(room: Room): Promise<boolean> {
     const key = keyFor(room.meta.code);
@@ -114,6 +120,10 @@ function memoryRooms(): Map<string, Room> {
 class MemoryRoomStore implements RoomStore {
   private readonly rooms = memoryRooms();
 
+  async ping(): Promise<void> {
+    /* Siempre disponible: vive en este proceso. */
+  }
+
   async create(room: Room): Promise<boolean> {
     if (this.rooms.has(room.meta.code)) return false;
     this.rooms.set(room.meta.code, room);
@@ -156,11 +166,21 @@ export function getRoomStore(): RoomStore {
   if (store) return store;
   const credentials = readCredentials();
   if (credentials) {
-    store = new RedisRoomStore(new Redis(credentials));
+    store = new RedisRoomStore(
+      new Redis({
+        ...credentials,
+        // Un reintento y poco más: si Redis no está, es mejor un error rápido
+        // que una función colgada hasta que Vercel la corte.
+        retry: { retries: 1, backoff: () => 250 },
+      }),
+    );
   } else {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        'Faltan las credenciales de Upstash (KV_REST_API_URL / KV_REST_API_TOKEN)',
+      // Error tipado: el cliente recibe un 503 con un mensaje que se entiende,
+      // en vez de un 500 genérico que no dice qué falta configurar.
+      throw new RoomError(
+        'multiplayer-unavailable',
+        'Este despliegue no tiene Redis configurado, así que el multijugador está apagado. El modo contra la IA sí funciona.',
       );
     }
     console.warn(
