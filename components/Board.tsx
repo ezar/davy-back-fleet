@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import { BoardShipArt } from './BoardShipArt';
 import { FLIGHT_MS, ImpactEffect } from './effects/ImpactEffect';
 import { getShip } from '@/lib/fleet';
 import { COLUMN_LABELS, ROW_LABELS, cellKey, placementCells } from '@/lib/gameLogic';
@@ -315,6 +316,8 @@ function ShipOverlay({
       ].join(' ')}
       title={`${ship.name} — ${ship.crew}`}
     >
+      <BoardShipArt shipId={placement.shipId} vertical={!horizontal} sunk={sunk} />
+      {/* La franja de color identifica el barco aunque la silueta quede diminuta. */}
       {!sunk && (
         <span
           aria-hidden
@@ -323,18 +326,6 @@ function ShipOverlay({
           }
           style={{ background: ship.color }}
         />
-      )}
-      {/* Hundido, las marcas de impacto tapan el rótulo: mejor no competir con ellas. */}
-      {!compact && !sunk && !tilted && (
-        <span
-          className={[
-            'truncate px-1 text-[0.52rem] font-bold uppercase tracking-[0.14em]',
-            horizontal ? '' : '[writing-mode:vertical-rl]',
-          ].join(' ')}
-          style={{ color: ship.color }}
-        >
-          {ship.short}
-        </span>
       )}
     </motion.div>
   );

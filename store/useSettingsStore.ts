@@ -3,10 +3,12 @@
 import { create } from 'zustand';
 
 /**
- * `flat`: el tablero visto desde arriba, como el juego de mesa.
- * `tilted`: el mismo tablero inclinado en perspectiva, con los barcos
- * levantados sobre el agua. Solo afecta al combate: la colocación sigue
- * siendo plana, porque arrastrar barcos sobre un plano inclinado es peor.
+ * `tilted` (por defecto): tablero inclinado en perspectiva, con los barcos
+ * levantados sobre el agua.
+ * `flat`: visto desde arriba, como el juego de mesa.
+ *
+ * Solo afecta al combate: la colocación es siempre plana, porque arrastrar
+ * barcos sobre un plano inclinado es peor de usar.
  */
 export type BoardView = 'flat' | 'tilted';
 
@@ -14,9 +16,10 @@ const VIEW_KEY = 'dbf:view';
 
 function readStoredView(): BoardView {
   try {
-    return localStorage.getItem(VIEW_KEY) === 'tilted' ? 'tilted' : 'flat';
+    // Por defecto 2.5D: solo se cae a plano si el jugador lo eligió.
+    return localStorage.getItem(VIEW_KEY) === 'flat' ? 'flat' : 'tilted';
   } catch {
-    return 'flat';
+    return 'tilted';
   }
 }
 
@@ -28,7 +31,7 @@ interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  view: 'flat',
+  view: 'tilted',
 
   hydrate: () => set({ view: readStoredView() }),
 
