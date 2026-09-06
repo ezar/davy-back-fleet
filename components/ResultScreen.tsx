@@ -2,9 +2,11 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { FLEET, getShip } from '@/lib/fleet';
 import { sunkShipIds } from '@/lib/gameLogic';
 import type { ShotLog } from '@/lib/types';
+import { useAudioStore } from '@/store/useAudioStore';
 import { afloatCount } from './FleetStatus';
 
 interface ResultScreenProps {
@@ -26,6 +28,13 @@ export function ResultScreen({
   onRestart,
 }: ResultScreenProps) {
   const won = outcome === 'won';
+  const play = useAudioStore((state) => state.play);
+
+  // Fanfarria una sola vez, al aparecer la pantalla.
+  useEffect(() => {
+    play(won ? 'victory' : 'defeat');
+  }, [won, play]);
+
   const hits = yourShots.filter((shot) => shot.outcome !== 'miss').length;
   const accuracy = yourShots.length > 0 ? Math.round((hits / yourShots.length) * 100) : 0;
   const afloat = afloatCount(incomingShots);

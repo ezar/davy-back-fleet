@@ -35,6 +35,51 @@ body {
   @apply relative aspect-square rounded-[3px] transition-colors duration-150;
 }
 
+/*
+ * Modo 2.5D: el tablero se inclina en perspectiva y los barcos se levantan
+ * sobre el agua. La inclinación comprime el alto en pantalla sin cambiar la
+ * caja del layout, así que el margen negativo recupera ese hueco muerto.
+ */
+.board-stage {
+  perspective: 1200px;
+  perspective-origin: 50% 30%;
+}
+
+.board-stage .board-grid {
+  /* La perspectiva ensancha el borde cercano: el `scale` lo devuelve al ancho
+     del contenedor, y el margen negativo recupera el alto que la inclinación
+     comprime visualmente pero que la caja del layout sigue reservando. */
+  transform: rotateX(38deg) scale(0.88);
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+  /* Los porcentajes de margen se resuelven contra el ANCHO del contenedor, no
+     el alto: de ahí que estos números no se parezcan al recorte vertical. */
+  margin-block: -14% -8%;
+}
+
+/* Las etiquetas miran a cámara. Sin desplazarlas en Z: en perspectiva
+   se irían fuera del tablero. */
+.board-stage .billboard {
+  transform: rotateX(-38deg);
+}
+
+/* El impacto sí se despega, para que la explosión no quede tumbada. */
+.board-stage .billboard-impact {
+  transform: rotateX(-38deg) translateZ(16px);
+}
+
+/* Sacudida al encajar un impacto. Corta y seca, no un terremoto. */
+@keyframes board-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-4px, 2px, 0); }
+  40% { transform: translate3d(4px, -2px, 0); }
+  60% { transform: translate3d(-3px, -1px, 0); }
+  80% { transform: translate3d(2px, 1px, 0); }
+}
+
+.shake-hit { animation: board-shake 320ms ease-in-out; }
+.shake-sunk { animation: board-shake 520ms ease-in-out; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -1,9 +1,12 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { FLEET } from '@/lib/fleet';
 import { cellLabel } from '@/lib/gameLogic';
-import type { Cell, Placement, ShotLog } from '@/lib/types';
+import type { Cell, Placement, ShotLog, ShotOutcome } from '@/lib/types';
+import { useAudioStore } from '@/store/useAudioStore';
+import { SettingsMenu } from './SettingsMenu';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { Board } from './Board';
 import { EnemyFleetChips, OwnFleetStatus, afloatCount } from './FleetStatus';
 
@@ -31,8 +34,24 @@ export function CombatView({
   onShoot,
   shootDisabled,
 }: CombatViewProps) {
+  const [shake, setShake] = useState<'' | 'shake-hit' | 'shake-sunk'>('');
+  const unlock = useAudioStore((state) => state.unlock);
+  const tilted = useSettingsStore((state) => state.view) === 'tilted';
+
+  const handleImpact = useCallback((outcome: ShotOutcome) => {
+    if (outcome === 'miss') return;
+    setShake(outcome === 'sunk' ? 'shake-sunk' : 'shake-hit');
+  }, []);
+
+  // La clase de animación tiene que soltarse para poder volver a aplicarse.
+  useEffect(() => {
+    if (!shake) return;
+    const timer = setTimeout(() => setShake(''), 560);
+    return () => clearTimeout(timer);
+  }, [shake]);
+
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${shake}`}>
       <TurnBanner yourTurn={yourTurn} waitingLabel={waitingLabel} />
       <LastMove opponentName={opponentName} ownShots={ownShots} />
 
@@ -42,7 +61,18 @@ export function CombatView({
           accent
           afloat={afloatCount(enemyShots)}
         />
-        <Board variant="enemy" shots={enemyShots} onCellClick={onShoot} disabled={shootDisabled} />
+        <Board
+          variant="enemy"
+          shots={enemyShots}
+          onCellClick={(cell) => {
+            // Primer gesto del usuario: es cuando el navegador deja nacer el audio.
+            unlock();
+            onShoot(cell);
+          }}
+          disabled={shootDisabled}
+          onImpact={handleImpact}
+          tilted={tilted}
+        />
         <EnemyFleetChips shots={enemyShots} />
       </section>
 
@@ -52,7 +82,14 @@ export function CombatView({
         <SectionHeader title="Tu flota" afloat={afloatCount(ownShots)} />
         <div className="flex items-start gap-3">
           <div className="w-[11.5rem] shrink-0">
-            <Board variant="own" shots={ownShots} placements={ownPlacements} compact />
+            <Board
+              variant="own"
+              shots={ownShots}
+              placements={ownPlacements}
+              compact
+              onImpact={handleImpact}
+              tilted={tilted}
+            />
           </div>
           <OwnFleetStatus shots={ownShots} placements={ownPlacements} />
         </div>
@@ -175,7 +212,10 @@ export function GameHeader({ right }: { right?: ReactNode }) {
         </svg>
         Inicio
       </a>
-      {right}
+      <span className="flex items-center gap-2">
+        {right}
+        <SettingsMenu />
+      </span>
     </header>
   );
 }

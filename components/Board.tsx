@@ -1,10 +1,13 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { FLIGHT_MS, ImpactEffect } from './effects/ImpactEffect';
 import { getShip } from '@/lib/fleet';
 import { COLUMN_LABELS, ROW_LABELS, cellKey, placementCells } from '@/lib/gameLogic';
 import { type CellState, buildCellStates, sunkPlacements } from '@/lib/boardView';
-import type { Cell, Placement, ShotLog } from '@/lib/types';
+import type { Cell, Placement, ShotLog, ShotOutcome, ShotResult } from '@/lib/types';
+import { useAudioStore } from '@/store/useAudioStore';
 
 export interface BoardProps {
   /**
@@ -21,6 +24,40 @@ export interface BoardProps {
   previewValid?: boolean;
   /** Versión reducida, sin cabeceras: para el tablero propio durante el combate. */
   compact?: boolean;
+  /** Avisa cuando un disparo impacta, para sacudir la pantalla. */
+  onImpact?: (outcome: ShotOutcome) => void;
+  /** Vista 2.5D: tablero inclinado y barcos levantados sobre el agua. */
+  tilted?: boolean;
+}
+
+/**
+ * Detecta el disparo recién llegado y lo anuncia una sola vez.
+ *
+ * Con polling, el historial llega como un array nuevo cada segundo aunque no
+ * haya cambiado nada, así que la señal es que crezca. En el primer render no
+ * dispara nada: si no, al recargar la página en mitad de una partida saldrían
+ * de golpe todas las explosiones anteriores.
+ */
+function useLatestShot(shots: ShotLog): { shot: ShotResult; key: number } | null {
+  const [latest, setLatest] = useState<{ shot: ShotResult; key: number } | null>(null);
+  const seen = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (seen.current === null) {
+      seen.current = shots.length;
+      return;
+    }
+    if (shots.length > seen.current) {
+      seen.current = shots.length;
+      setLatest({ shot: shots[shots.length - 1], key: shots.length });
+    } else if (shots.length < seen.current) {
+      // Partida nueva: el historial se ha vaciado.
+      seen.current = shots.length;
+      setLatest(null);
+    }
+  }, [shots]);
+
+  return latest;
 }
 
 export function Board({
@@ -32,6 +69,8 @@ export function Board({
   previewPlacement = null,
   previewValid = true,
   compact = false,
+  onImpact,
+  tilted = false,
 }: BoardProps) {
   const states = buildCellStates(shots, variant === 'own' ? placements : null);
   // En el tablero rival solo se dibujan los barcos que ya has hundido.
@@ -39,8 +78,27 @@ export function Board({
   // Sin cabeceras la rejilla empieza en 1; con ellas, en 2.
   const offset = compact ? 1 : 2;
 
+  const latest = useLatestShot(shots);
+  const play = useAudioStore((state) => state.play);
+
+  // Cañonazo al salir y estallido al llegar: el sonido acompaña al proyectil.
+  useEffect(() => {
+    if (!latest) return;
+    play('cannon');
+    const impact = setTimeout(() => {
+      const { outcome } = latest.shot;
+      play(outcome === 'miss' ? 'splash' : outcome === 'sunk' ? 'sink' : 'explosion');
+      onImpact?.(outcome);
+    }, FLIGHT_MS);
+    return () => clearTimeout(impact);
+    // `onImpact` cambia de identidad en cada render del padre y volvería a
+    // programar el impacto; el disparo es lo único que debe reiniciarlo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latest, play]);
+
   return (
-    <div className={compact ? 'board-grid board-grid--compact' : 'board-grid'}>
+    <div className={tilted ? 'board-stage' : undefined}>
+      <div className={compact ? 'board-grid board-grid--compact' : 'board-grid'}>
       {!compact && (
         <>
           <span aria-hidden style={{ gridRow: 1, gridColumn: 1 }} />
@@ -48,7 +106,7 @@ export function Board({
             <span
               key={label}
               style={{ gridRow: 1, gridColumn: col + 2 }}
-              className="text-center text-[0.58rem] font-bold uppercase tracking-wide text-foam/40"
+              className="billboard text-center text-[0.58rem] font-bold uppercase tracking-wide text-foam/40"
             >
               {label}
             </span>
@@ -57,7 +115,7 @@ export function Board({
             <span
               key={label}
               style={{ gridRow: row + 2, gridColumn: 1 }}
-              className="flex items-center justify-center text-[0.58rem] font-bold text-foam/40"
+              className="billboard flex items-center justify-center text-[0.58rem] font-bold text-foam/40"
             >
               {label}
             </span>
@@ -87,12 +145,30 @@ export function Board({
           offset={offset}
           compact={compact}
           sunk={isSunk(placement, states)}
+          tilted={tilted}
         />
       ))}
 
       {previewPlacement && (
         <PreviewOverlay placement={previewPlacement} offset={offset} valid={previewValid} />
       )}
+
+      {latest && (
+        <span
+          className="billboard-impact pointer-events-none relative z-40"
+          style={{
+            gridRow: latest.shot.cell.row + offset,
+            gridColumn: latest.shot.cell.col + offset,
+          }}
+        >
+          <ImpactEffect
+            outcome={latest.shot.outcome}
+            from={variant === 'enemy' ? 'bottom' : 'top'}
+            shotKey={latest.key}
+          />
+        </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -201,11 +277,13 @@ function ShipOverlay({
   offset,
   compact,
   sunk,
+  tilted,
 }: {
   placement: Placement;
   offset: number;
   compact: boolean;
   sunk: boolean;
+  tilted: boolean;
 }) {
   const ship = getShip(placement.shipId);
   if (!ship) return null;
@@ -214,7 +292,15 @@ function ShipOverlay({
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.85 }}
-      animate={{ opacity: 1, scale: 1 }}
+      animate={{
+        opacity: 1,
+        scale: 1,
+        rotate: sunk ? -7 : 0,
+        y: sunk ? 2 : 0,
+        // Levantarlos sobre el plano es lo que da la sensación de volumen.
+        z: tilted ? (sunk ? 3 : 10) : 0,
+      }}
+      transition={{ rotate: { type: 'spring', stiffness: 90, damping: 9 } }}
       style={{
         gridColumn: `${placement.col + offset} / span ${horizontal ? ship.size : 1}`,
         gridRow: `${placement.row + offset} / span ${horizontal ? 1 : ship.size}`,
@@ -239,7 +325,7 @@ function ShipOverlay({
         />
       )}
       {/* Hundido, las marcas de impacto tapan el rótulo: mejor no competir con ellas. */}
-      {!compact && !sunk && (
+      {!compact && !sunk && !tilted && (
         <span
           className={[
             'truncate px-1 text-[0.52rem] font-bold uppercase tracking-[0.14em]',
