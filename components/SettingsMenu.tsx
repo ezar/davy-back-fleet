@@ -5,13 +5,20 @@ import { useEffect, useRef, useState } from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
 import { type BoardView, useSettingsStore } from '@/store/useSettingsStore';
 
-/** In-game settings: board view and sound. */
-export function SettingsMenu() {
+/** In-game settings: board view, AI difficulty and sound. */
+export function SettingsMenu({
+  /** Difficulty only exists against the AI, so it is hidden in a room. */
+  solo = false,
+}: {
+  solo?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
 
   const view = useSettingsStore((state) => state.view);
   const setView = useSettingsStore((state) => state.setView);
+  const aiStrategy = useSettingsStore((state) => state.aiStrategy);
+  const setAiStrategy = useSettingsStore((state) => state.setAiStrategy);
   const hydrateView = useSettingsStore((state) => state.hydrate);
 
   const muted = useAudioStore((state) => state.muted);
@@ -83,6 +90,38 @@ export function SettingsMenu() {
               </p>
             </fieldset>
 
+            {solo && (
+              // The rule goes on the wrapper, not the fieldset: a <legend>
+              // sits on the fieldset's own border and cuts it in half.
+              <div className="mb-3 border-t border-foam/8 pt-2.5">
+                <fieldset>
+                  <legend className="mb-1.5 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-foam/45">
+                    Dificultad
+                  </legend>
+                  <div className="flex gap-1.5">
+                    <Choice
+                      active={aiStrategy === 'random'}
+                      label="Normal"
+                      onSelect={() => setAiStrategy('random')}
+                    />
+                    <Choice
+                      active={aiStrategy === 'density'}
+                      label="Difícil"
+                      onSelect={() => setAiStrategy('density')}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[0.65rem] leading-relaxed text-foam/40">
+                    {aiStrategy === 'random'
+                      ? 'Dispara al azar mientras busca. Te hunde la flota en unos 61 disparos.'
+                      : 'Apunta donde más quepan los barcos que te quedan, y descarta el agua que ya conoce. Unos 45 disparos.'}
+                  </p>
+                  <p className="mt-1 text-[0.65rem] leading-relaxed text-foam/30">
+                    Se aplica a la siguiente partida.
+                  </p>
+                </fieldset>
+              </div>
+            )}
+
             <div className="flex items-center justify-between border-t border-foam/8 pt-2.5">
               <span className="text-xs font-bold text-foam/70">Sonido</span>
               <button
@@ -125,11 +164,23 @@ function ViewOption({
   label: string;
   onSelect: (view: BoardView) => void;
 }) {
-  const active = current === value;
+  return <Choice active={current === value} label={label} onSelect={() => onSelect(value)} />;
+}
+
+/** One of a row of mutually exclusive chips. */
+function Choice({
+  active,
+  label,
+  onSelect,
+}: {
+  active: boolean;
+  label: string;
+  onSelect: () => void;
+}) {
   return (
     <button
       type="button"
-      onClick={() => onSelect(value)}
+      onClick={onSelect}
       aria-pressed={active}
       className={[
         'flex-1 rounded-lg border px-2 py-2 text-xs font-bold transition',

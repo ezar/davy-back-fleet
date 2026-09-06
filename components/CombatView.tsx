@@ -189,7 +189,7 @@ function capitalize(text: string): string {
 }
 
 /** Shared header for the in-game screens. */
-export function GameHeader({ right }: { right?: ReactNode }) {
+export function GameHeader({ right, solo = false }: { right?: ReactNode; solo?: boolean }) {
   return (
     <header className="flex h-9 items-center justify-between gap-3">
       <a
@@ -212,7 +212,7 @@ export function GameHeader({ right }: { right?: ReactNode }) {
       </a>
       <span className="flex items-center gap-2">
         {right}
-        <SettingsMenu />
+        <SettingsMenu solo={solo} />
       </span>
     </header>
   );

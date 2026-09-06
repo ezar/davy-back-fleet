@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { chooseAiShot } from '@/lib/aiOpponent';
+import { DEFAULT_HUNT_STRATEGY, type HuntStrategy, chooseAiShot } from '@/lib/aiOpponent';
 import { isFleetDestroyed, randomFleet, resolveShot } from '@/lib/gameLogic';
 import type { Cell, Placement, ShipId, ShotLog } from '@/lib/types';
 
@@ -19,13 +19,18 @@ interface SoloState {
   /** Shots the AI has fired at yours. */
   shotsAtPlayer: ShotLog;
   turn: 'player' | 'ai';
+  /**
+   * Fixed when the game starts. Reading the setting on every shot would let
+   * the difficulty change halfway through a game already under way.
+   */
+  aiStrategy: HuntStrategy;
   winner: 'player' | 'ai' | null;
   aiThinking: boolean;
   lastSunkByPlayer: ShipId | null;
   lastSunkByAi: ShipId | null;
 
   /** Starts a new game in the placement phase. Client only. */
-  newGame: () => void;
+  newGame: (aiStrategy?: HuntStrategy) => void;
   setPlayerFleet: (placements: Placement[]) => void;
   startBattle: () => void;
   shoot: (cell: Cell) => void;
@@ -48,7 +53,7 @@ export const useGameStore = create<SoloState>((set, get) => {
         return;
       }
 
-      const { cell } = chooseAiShot(current.shotsAtPlayer);
+      const { cell } = chooseAiShot(current.shotsAtPlayer, undefined, current.aiStrategy);
       const result = resolveShot(current.playerFleet, current.shotsAtPlayer, cell);
       const shotsAtPlayer: ShotLog = [...current.shotsAtPlayer, result];
       const defeated = isFleetDestroyed(shotsAtPlayer);
@@ -73,14 +78,16 @@ export const useGameStore = create<SoloState>((set, get) => {
     shotsAtAi: [],
     shotsAtPlayer: [],
     turn: 'player',
+    aiStrategy: DEFAULT_HUNT_STRATEGY,
     winner: null,
     aiThinking: false,
     lastSunkByPlayer: null,
     lastSunkByAi: null,
 
-    newGame: () =>
+    newGame: (aiStrategy = DEFAULT_HUNT_STRATEGY) =>
       set({
         phase: 'placing',
+        aiStrategy,
         playerFleet: randomFleet(),
         aiFleet: randomFleet(),
         shotsAtAi: [],
