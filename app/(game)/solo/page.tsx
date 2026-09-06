@@ -29,7 +29,7 @@ export default function SoloPage() {
     shoot,
   } = useGameStore();
 
-  // La flota se sortea en el cliente: hacerlo en el servidor rompería la hidratación.
+  // The fleet is rolled on the client: doing it on the server would break hydration.
   useEffect(() => {
     if (phase === 'idle') newGame();
   }, [phase, newGame]);

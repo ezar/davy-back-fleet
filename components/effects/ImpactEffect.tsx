@@ -4,23 +4,23 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useMemo } from 'react';
 import type { ShotOutcome } from '@/lib/types';
 
-/** Cuánto tarda el proyectil en llegar. El impacto y su sonido esperan a esto. */
+/** How long the shell takes to arrive. The impact and its sound wait for this. */
 export const FLIGHT_MS = 360;
 
 interface ImpactEffectProps {
   outcome: ShotOutcome;
-  /** De dónde viene el disparo: tú disparas desde abajo, el rival desde arriba. */
+  /** Where the shot comes from: you fire from below, the opponent from above. */
   from: 'bottom' | 'top';
-  /** Cambia con cada disparo nuevo, para que la animación vuelva a empezar. */
+  /** Changes with every new shot, so the animation restarts. */
   shotKey: number;
 }
 
-/** Ángulos y distancias fijos por disparo: si se recalculan, la animación tiembla. */
+/** Fixed angles and distances per shot: recomputing them makes it jitter. */
 function useParticles(count: number, seed: number) {
   return useMemo(
     () =>
       Array.from({ length: count }, (_, i) => {
-        // Reparto en abanico con una pizca de desorden reproducible.
+        // Spread in a fan with a pinch of reproducible noise.
         const jitter = Math.sin((seed + i) * 12.9898) * 43758.5453;
         const noise = jitter - Math.floor(jitter);
         const angle = (i / count) * Math.PI * 2 + noise * 0.7;
@@ -44,7 +44,7 @@ export function ImpactEffect({ outcome, from, shotKey }: ImpactEffectProps) {
   const flight = FLIGHT_MS / 1000;
 
   if (reduced) {
-    // Sin movimiento: un destello y ya. La información llega igual.
+    // No motion: a flash and nothing else. The information still lands.
     return (
       <motion.span
         key={shotKey}
@@ -59,7 +59,7 @@ export function ImpactEffect({ outcome, from, shotKey }: ImpactEffectProps) {
 
   return (
     <span key={shotKey} className="pointer-events-none absolute inset-0 z-40">
-      {/* El proyectil, cayendo sobre la casilla. */}
+      {/* The shell, dropping onto the cell. */}
       <motion.span
         initial={{ y: from === 'bottom' ? 260 : -260, opacity: 0, scale: 0.6 }}
         animate={{ y: 0, opacity: [0, 1, 1], scale: 1 }}
@@ -67,7 +67,7 @@ export function ImpactEffect({ outcome, from, shotKey }: ImpactEffectProps) {
         className="absolute inset-0 m-auto h-1.5 w-1.5 rounded-full bg-gold shadow-[0_0_10px_4px_rgba(242,177,52,0.8)]"
       />
 
-      {/* Fogonazo del impacto. */}
+      {/* Impact flash. */}
       <motion.span
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: sunk ? 3.4 : water ? 1.9 : 2.6, opacity: [0, 1, 0] }}
@@ -80,7 +80,7 @@ export function ImpactEffect({ outcome, from, shotKey }: ImpactEffectProps) {
         }}
       />
 
-      {/* Onda expansiva: solo cuando cae un barco entero. */}
+      {/* Shockwave: only when a whole ship goes down. */}
       {sunk && (
         <motion.span
           initial={{ scale: 0.2, opacity: 0.85 }}
@@ -90,7 +90,7 @@ export function ImpactEffect({ outcome, from, shotKey }: ImpactEffectProps) {
         />
       )}
 
-      {/* Metralla: gotas de agua o ascuas, según lo que haya pasado. */}
+      {/* Shrapnel: water droplets or embers, depending on what happened. */}
       {particles.map((particle, i) => (
         <motion.span
           key={i}
@@ -110,7 +110,7 @@ export function ImpactEffect({ outcome, from, shotKey }: ImpactEffectProps) {
         />
       ))}
 
-      {/* Humo, para que el fuego deje rastro. */}
+      {/* Smoke, so the fire leaves a trace. */}
       {!water && (
         <motion.span
           initial={{ scale: 0.4, opacity: 0 }}

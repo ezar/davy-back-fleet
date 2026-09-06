@@ -4,14 +4,14 @@ import { FLEET } from '@/lib/fleet';
 import { placementCells, sunkShipIds, cellKey } from '@/lib/gameLogic';
 import type { Placement, ShotLog } from '@/lib/types';
 
-/** Barcos que siguen a flote, de los cinco. */
+/** Ships still afloat, out of the five. */
 export function afloatCount(shots: ShotLog): number {
   return FLEET.length - sunkShipIds(shots).length;
 }
 
 /**
- * Flota rival: una fila de fichas. No se sabe dónde está cada barco,
- * solo si sigue a flote, así que la ficha es toda la información que hay.
+ * Enemy fleet: a row of chips. You cannot know where each ship is, only
+ * whether it is still afloat, so the chip is all the information there is.
  */
 export function EnemyFleetChips({ shots }: { shots: ShotLog }) {
   const sunk = new Set(sunkShipIds(shots));
@@ -46,8 +46,8 @@ export function EnemyFleetChips({ shots }: { shots: ShotLog }) {
 }
 
 /**
- * Flota propia: como sí sabes dónde está cada barco, se muestra el daño
- * casilla a casilla. Cada cuadrito es una casilla, en rojo si está tocada.
+ * Own fleet: since you do know where each ship is, damage is shown cell by
+ * cell. Each little square is a cell, red once it has been hit.
  */
 export function OwnFleetStatus({
   shots,

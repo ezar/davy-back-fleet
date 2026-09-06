@@ -5,7 +5,7 @@ import { RoomError, joinRoom, sanitizeName, viewRoomFor } from '@/lib/room';
 
 export const dynamic = 'force-dynamic';
 
-/** POST /api/room/join — entra en una sala existente como segundo jugador. */
+/** POST /api/room/join - joins an existing room as the second player. */
 export async function POST(request: Request) {
   try {
     const body = await readJsonBody(request);
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const room = await requireRoom(store, code);
     const joined = joinRoom(room, name, playerId);
 
-    // `hsetnx` decide quién entra si dos personas usan el código a la vez.
+    // `hsetnx` decides who gets in when two people use the code at once.
     const claimed = await store.claimSeat(code, 'guest', joined.guest!, joined.meta);
     if (!claimed) throw new RoomError('room-full', 'La sala ya tiene dos jugadores');
 

@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * Sonido sintetizado con la Web Audio API.
+ * Sound synthesised with the Web Audio API.
  *
- * Nada de ficheros: los cañonazos, las salpicaduras y las explosiones se
- * generan aquí. Así no hay descargas, ni licencias, ni un segundo de espera
- * la primera vez que disparas.
+ * No files at all: the cannon fire, the splashes and the explosions are
+ * generated here. So there is nothing to download, no licensing, and no
+ * wait the first time you fire.
  *
- * El navegador no deja sonar nada hasta que el usuario interactúa, así que el
- * contexto se crea perezosamente en el primer disparo.
+ * Browsers refuse to play anything until the user interacts, so the context
+ * is created lazily on the first shot.
  */
 
 export type Sfx = 'cannon' | 'splash' | 'explosion' | 'sink' | 'victory' | 'defeat';
@@ -18,17 +18,19 @@ let master: GainNode | null = null;
 let ambient: { source: AudioBufferSourceNode; gain: GainNode; lfo: OscillatorNode } | null = null;
 let noiseBuffer: AudioBuffer | null = null;
 
-/** Volumen general: alto suena a juguete roto, bajo no se oye en un móvil. */
+/** Overall volume: loud sounds like a broken toy, quiet is lost on a phone. */
 const MASTER_GAIN = 0.5;
 
 function ensureContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   if (context) {
-    // Safari suspende el contexto al volver de segundo plano.
+    // Safari suspends the context when coming back from the background.
     if (context.state === 'suspended') void context.resume();
     return context;
   }
-  const Ctor = window.AudioContext ?? (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const Ctor =
+    window.AudioContext ??
+    (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctor) return null;
   context = new Ctor();
   master = context.createGain();
@@ -37,7 +39,7 @@ function ensureContext(): AudioContext | null {
   return context;
 }
 
-/** Ruido blanco reutilizable: es la base de casi todo lo que suena aquí. */
+/** Reusable white noise: the basis of almost everything that sounds here. */
 function getNoise(ctx: AudioContext): AudioBuffer {
   if (noiseBuffer) return noiseBuffer;
   const length = ctx.sampleRate * 2;
@@ -48,7 +50,7 @@ function getNoise(ctx: AudioContext): AudioBuffer {
   return buffer;
 }
 
-/** Golpe de ruido filtrado: el ladrillo con el que se construyen los impactos. */
+/** Filtered noise burst: the brick every impact is built from. */
 function burst(
   ctx: AudioContext,
   destination: AudioNode,
@@ -81,7 +83,7 @@ function burst(
   source.stop(at + options.duration + 0.05);
 }
 
-/** Barrido tonal: el "cuerpo" grave de un cañonazo o el lamento de un barco al hundirse. */
+/** Tonal sweep: the low body of a cannon shot, or a hull groaning as it sinks. */
 function sweep(
   ctx: AudioContext,
   destination: AudioNode,
@@ -110,7 +112,7 @@ function sweep(
   osc.stop(at + options.duration + 0.05);
 }
 
-/** Nota corta y limpia, para las fanfarrias. */
+/** A short clean note, for the fanfares. */
 function note(
   ctx: AudioContext,
   destination: AudioNode,
@@ -140,15 +142,29 @@ export function playSfx(name: Sfx): void {
 
   switch (name) {
     case 'cannon':
-      // Chasquido de pólvora encima de un golpe grave.
+      // Powder crack over a low thump.
       burst(ctx, master, { duration: 0.28, type: 'lowpass', from: 2200, to: 200, gain: 0.5 });
       sweep(ctx, master, { type: 'sine', from: 140, to: 45, duration: 0.3, gain: 0.4 });
       break;
 
     case 'splash':
-      // Agua: agudo que se abre y cae, sin cuerpo grave.
-      burst(ctx, master, { duration: 0.42, type: 'bandpass', from: 700, to: 3400, gain: 0.42, q: 1.1 });
-      burst(ctx, master, { duration: 0.22, type: 'highpass', from: 1800, to: 5200, gain: 0.2, delay: 0.05 });
+      // Water: a high sound that opens and falls, with no low body.
+      burst(ctx, master, {
+        duration: 0.42,
+        type: 'bandpass',
+        from: 700,
+        to: 3400,
+        gain: 0.42,
+        q: 1.1,
+      });
+      burst(ctx, master, {
+        duration: 0.22,
+        type: 'highpass',
+        from: 1800,
+        to: 5200,
+        gain: 0.2,
+        delay: 0.05,
+      });
       sweep(ctx, master, { type: 'sine', from: 420, to: 160, duration: 0.16, gain: 0.1 });
       break;
 
@@ -158,22 +174,37 @@ export function playSfx(name: Sfx): void {
       break;
 
     case 'sink':
-      // Explosión grande, y detrás el casco quejándose mientras se va al fondo.
+      // A big blast, and behind it the hull complaining on its way down.
       burst(ctx, master, { duration: 0.85, type: 'lowpass', from: 2400, to: 90, gain: 0.7 });
       sweep(ctx, master, { type: 'sawtooth', from: 150, to: 30, duration: 0.75, gain: 0.4 });
-      sweep(ctx, master, { type: 'triangle', from: 200, to: 52, duration: 1.5, gain: 0.2, delay: 0.35 });
-      burst(ctx, master, { duration: 1.1, type: 'bandpass', from: 500, to: 180, gain: 0.22, q: 3, delay: 0.5 });
+      sweep(ctx, master, {
+        type: 'triangle',
+        from: 200,
+        to: 52,
+        duration: 1.5,
+        gain: 0.2,
+        delay: 0.35,
+      });
+      burst(ctx, master, {
+        duration: 1.1,
+        type: 'bandpass',
+        from: 500,
+        to: 180,
+        gain: 0.22,
+        q: 3,
+        delay: 0.5,
+      });
       break;
 
     case 'victory': {
-      // Do - Mi - Sol - Do, hacia arriba.
+      // C - E - G - C, going up.
       const notes = [523.25, 659.25, 783.99, 1046.5];
       notes.forEach((frequency, i) => note(ctx, master!, frequency, i * 0.13, 0.5));
       break;
     }
 
     case 'defeat': {
-      // La misma idea, en menor y cayendo.
+      // The same idea, minor and falling.
       const notes = [392, 349.23, 311.13, 233.08];
       notes.forEach((frequency, i) => note(ctx, master!, frequency, i * 0.18, 0.75, 0.13));
       break;
@@ -182,8 +213,8 @@ export function playSfx(name: Sfx): void {
 }
 
 /**
- * Oleaje de fondo: ruido grave cuyo filtro sube y baja despacio.
- * Suena a mar sin llegar a ser una melodía que canse.
+ * Background swell: low noise whose filter rises and falls slowly.
+ * It reads as the sea without becoming a tune that wears thin.
  */
 export function startAmbient(): void {
   const ctx = ensureContext();
@@ -198,7 +229,7 @@ export function startAmbient(): void {
   filter.frequency.value = 420;
   filter.Q.value = 0.7;
 
-  // El vaivén: un oscilador lentísimo moviendo la frecuencia de corte.
+  // The sway: a very slow oscillator moving the cutoff frequency.
   const lfo = ctx.createOscillator();
   lfo.type = 'sine';
   lfo.frequency.value = 0.12;
@@ -228,12 +259,12 @@ export function stopAmbient(): void {
       source.stop();
       lfo.stop();
     } catch {
-      // Ya estaba parado: no hay nada que hacer.
+      // It had already stopped: nothing to do.
     }
   }, 600);
 }
 
-/** Silencia o devuelve el sonido sin destruir el contexto. */
+/** Mutes or unmutes without tearing down the context. */
 export function setMasterMuted(muted: boolean): void {
   const ctx = ensureContext();
   if (!ctx || !master) return;
@@ -242,8 +273,8 @@ export function setMasterMuted(muted: boolean): void {
 }
 
 /**
- * Prepara el audio dentro de un gesto del usuario. Los navegadores exigen
- * que el contexto nazca de una interacción, así que esto se llama al primer clic.
+ * Prepares audio from within a user gesture. Browsers require the context to
+ * be born from an interaction, so this is called on the first click.
  */
 export function unlockAudio(): void {
   ensureContext();

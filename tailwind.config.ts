@@ -1,8 +1,8 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Tokens de diseño. Son el punto de entrada para lo que salga de Claude
- * Design: cambiando estos valores cambia todo el juego.
+ * Design tokens. They are the entry point for whatever comes out of Claude
+ * Design: change these values and the whole game is repainted.
  */
 const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],

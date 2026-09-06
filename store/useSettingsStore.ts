@@ -3,12 +3,12 @@
 import { create } from 'zustand';
 
 /**
- * `tilted` (por defecto): tablero inclinado en perspectiva, con los barcos
- * levantados sobre el agua.
- * `flat`: visto desde arriba, como el juego de mesa.
+ * `tilted` (the default): board tilted in perspective, with the ships lifted
+ * above the water.
+ * `flat`: seen from straight above, like the board game.
  *
- * Solo afecta al combate: la colocación es siempre plana, porque arrastrar
- * barcos sobre un plano inclinado es peor de usar.
+ * Combat only: placement is always flat, because dragging ships across a
+ * tilted plane is worse to use.
  */
 export type BoardView = 'flat' | 'tilted';
 
@@ -16,7 +16,7 @@ const VIEW_KEY = 'dbf:view';
 
 function readStoredView(): BoardView {
   try {
-    // Por defecto 2.5D: solo se cae a plano si el jugador lo eligió.
+    // 2.5D by default: it only falls back to flat if the player chose it.
     return localStorage.getItem(VIEW_KEY) === 'flat' ? 'flat' : 'tilted';
   } catch {
     return 'tilted';
@@ -25,7 +25,7 @@ function readStoredView(): BoardView {
 
 interface SettingsState {
   view: BoardView;
-  /** Lee la preferencia guardada. Se llama desde un efecto, nunca en el render. */
+  /** Reads the stored preference. Called from an effect, never during render. */
   hydrate: () => void;
   setView: (view: BoardView) => void;
 }
@@ -40,7 +40,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     try {
       localStorage.setItem(VIEW_KEY, view);
     } catch {
-      // Modo privado: la preferencia dura lo que la pestaña.
+      // Private mode: the preference lasts as long as the tab.
     }
   },
 }));

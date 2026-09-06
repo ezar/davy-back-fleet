@@ -2,9 +2,9 @@ import { getShip } from '@/lib/fleet';
 import type { ShipId } from '@/lib/types';
 
 /**
- * Silueta de un barco, dibujada en el color del propio barco.
- * El número de mástiles crece con el tamaño, así que los cinco se distinguen
- * de un vistazo aunque estén en miniatura.
+ * Silhouette of a ship, drawn in the ship's own colour.
+ * The number of masts grows with size, so all five stay distinguishable
+ * at a glance even in miniature.
  */
 export function ShipSilhouette({ shipId, className }: { shipId: ShipId; className?: string }) {
   const ship = getShip(shipId);
@@ -12,7 +12,7 @@ export function ShipSilhouette({ shipId, className }: { shipId: ShipId; classNam
 
   const color = ship.color;
   const masts = ship.size >= 5 ? 3 : ship.size >= 3 ? 2 : 1;
-  // Los barcos pequeños tienen el casco más corto.
+  // Smaller ships have a shorter hull.
   const inset = ship.size >= 5 ? 3 : ship.size >= 3 ? 7 : 11;
   const spacing = (48 - inset * 2) / (masts + 1);
 
@@ -42,7 +42,11 @@ export function ShipSilhouette({ shipId, className }: { shipId: ShipId; classNam
           </g>
         );
       })}
-      <path d={`M${inset} 20h${48 - inset * 2}l-${inset + 2} 7H${inset + 2}z`} fill={color} opacity={0.92} />
+      <path
+        d={`M${inset} 20h${48 - inset * 2}l-${inset + 2} 7H${inset + 2}z`}
+        fill={color}
+        opacity={0.92}
+      />
     </svg>
   );
 }

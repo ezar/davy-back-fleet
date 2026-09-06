@@ -1,12 +1,12 @@
-/** Fuente de aleatoriedad inyectable: devuelve un número en [0, 1). */
+/** Injectable source of randomness: returns a number in [0, 1). */
 export type Rng = () => number;
 
-/** RNG por defecto. */
+/** Default RNG. */
 export const defaultRng: Rng = Math.random;
 
 /**
- * PRNG mulberry32: determinista a partir de una semilla.
- * Se usa en los tests y permite reproducir una partida concreta.
+ * mulberry32 PRNG: deterministic given a seed.
+ * Used by the tests, and lets a specific game be replayed.
  */
 export function seededRng(seed: number): Rng {
   let a = seed >>> 0;
@@ -19,12 +19,12 @@ export function seededRng(seed: number): Rng {
   };
 }
 
-/** Entero en [0, max). */
+/** Integer in [0, max). */
 export function randomInt(rng: Rng, max: number): number {
   return Math.floor(rng() * max);
 }
 
-/** Elemento aleatorio de un array no vacío. */
+/** Random element of a non-empty array. */
 export function pick<T>(rng: Rng, items: readonly T[]): T {
   return items[randomInt(rng, items.length)];
 }

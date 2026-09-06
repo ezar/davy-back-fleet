@@ -3,7 +3,7 @@ import { Cinzel, Karla } from 'next/font/google';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
 import './globals.css';
 
-/** Cinzel para titulares (grabado, marino); Karla para texto. */
+/** Cinzel for headings (engraved, nautical); Karla for body text. */
 const cinzel = Cinzel({
   subsets: ['latin'],
   weight: ['600', '800', '900'],
@@ -20,7 +20,8 @@ const karla = Karla({
 
 export const metadata: Metadata = {
   title: 'Davy Back Fleet',
-  description: 'Hundir la flota con los barcos de One Piece. Juega en familia, cada uno en su móvil.',
+  description:
+    'Hundir la flota con los barcos de One Piece. Juega en familia, cada uno en su móvil.',
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Davy Back Fleet' },
   icons: { icon: '/icons/icon-192.png', apple: '/icons/apple-touch-icon.png' },

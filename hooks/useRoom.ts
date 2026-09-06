@@ -12,15 +12,15 @@ import type { RoomView } from '@/lib/room';
 import type { Cell, Placement, ShipId } from '@/lib/types';
 import { sunkShipIds } from '@/lib/gameLogic';
 
-/** Cadencia de sincronización, tal y como fija la spec. */
+/** Sync cadence, exactly as the spec sets it. */
 const POLL_MS = 1000;
-/** Con la pestaña en segundo plano se relaja el ritmo para no gastar invocaciones. */
+/** With the tab in the background the pace relaxes, to spend fewer invocations. */
 const POLL_MS_HIDDEN = 5000;
 
 export interface UseRoomResult {
   view: RoomView | null;
   error: string | null;
-  /** Barco recién hundido por ti / por el rival, para las micro-celebraciones. */
+  /** Ship just sunk by you / by the opponent, for the micro-celebrations. */
   sunkByYou: ShipId | null;
   sunkByOpponent: ShipId | null;
   placeFleet: (placements: Placement[]) => Promise<void>;
@@ -29,9 +29,9 @@ export interface UseRoomResult {
 }
 
 /**
- * Mantiene sincronizada una sala por polling HTTP.
- * El identificador del jugador sale de `localStorage`, así que un refresco
- * no expulsa a nadie de la partida.
+ * Keeps a room in sync by HTTP polling.
+ * The player id comes from `localStorage`, so a reload never throws anyone
+ * out of the game.
  */
 export function useRoom(code: string): UseRoomResult {
   const [view, setView] = useState<RoomView | null>(null);
@@ -43,7 +43,7 @@ export function useRoom(code: string): UseRoomResult {
   const playerIdRef = useRef<string | null>(null);
   const stopped = useRef(false);
 
-  /** Detecta los hundimientos nuevos comparando con el estado anterior. */
+  /** Spots new sinkings by comparing against the previous state. */
   const applyView = useCallback((next: RoomView) => {
     setView((previous) => {
       const previousMine = previous ? sunkShipIds(previous.opponent.outgoingShots).length : 0;
@@ -76,7 +76,7 @@ export function useRoom(code: string): UseRoomResult {
         const { view: next } = await fetchRoomState(code, playerId);
         applyView(next);
       } catch (cause) {
-        // Un fallo de red puntual no debe echar al jugador: se reintenta.
+        // A one-off network glitch must not eject the player: it retries.
         if (cause instanceof ApiError && cause.code === 'room-not-found') {
           setError('Esa sala ya no existe. Puede que haya caducado.');
           stopped.current = true;
@@ -118,7 +118,8 @@ export function useRoom(code: string): UseRoomResult {
   );
 
   const placeFleet = useCallback(
-    (placements: Placement[]) => runAction((playerId) => placeFleetRequest(code, playerId, placements)),
+    (placements: Placement[]) =>
+      runAction((playerId) => placeFleetRequest(code, playerId, placements)),
     [code, runAction],
   );
 

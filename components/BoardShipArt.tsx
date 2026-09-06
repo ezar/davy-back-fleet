@@ -2,19 +2,19 @@ import { getShip } from '@/lib/fleet';
 import type { ShipId } from '@/lib/types';
 
 /**
- * Dibujo del barco dentro de su huella en el tablero.
+ * The ship drawn inside its footprint on the board.
  *
- * Vista CENITAL, no de perfil: es como se ven los barcos en un tablero, y es
- * lo único que funciona igual de bien en horizontal y en vertical. De perfil,
- * un barco girado 90° se lee como una astilla con banderas.
+ * Seen FROM ABOVE, not side-on: that is how ships read on a board, and it is
+ * the only view that works equally well horizontally and vertically. Side-on,
+ * a ship rotated 90 degrees reads as a splinter with flags.
  *
- * El `viewBox` se genera con la proporción exacta de las casillas que ocupa
- * (N:1), así que el casco se dibuja a su medida y no hay que deformarlo.
+ * The `viewBox` is generated with the exact ratio of the cells it occupies
+ * (N:1), so the hull is drawn to size instead of being stretched to fit.
  */
 
-/** Alto del lienzo. El ancho es `size * UNIT`, de ahí la proporción N:1. */
+/** Canvas height. Width is `size * UNIT`, hence the N:1 ratio. */
 const UNIT = 100;
-/** Eje de crujía y media manga. */
+/** Centreline and half-beam. */
 const AXIS = 50;
 const BEAM = 27;
 
@@ -32,7 +32,7 @@ export function BoardShipArt({
   shipId,
   vertical,
   sunk,
-  /** En la miniatura del combate el detalle fino solo ensucia. */
+  /** In the combat thumbnail the fine detail only muddies things. */
   simplified = false,
 }: {
   shipId: ShipId;
@@ -50,9 +50,9 @@ export function BoardShipArt({
   const masts = ship.size >= 5 ? 3 : ship.size >= 3 ? 2 : 1;
   const clipId = `hull-${shipId}${vertical ? '-v' : ''}${sunk ? '-s' : ''}`;
 
-  // Casco visto desde arriba: proa en punta a la derecha, popa redondeada.
-  // Cuerpo lleno casi hasta proa y afinamiento corto: si el afinamiento
-  // empieza en el centro el barco se lee como una piragua, no como un galeón.
+  // Hull seen from above: pointed bow to the right, rounded stern.
+  // Full body almost to the bow with a short taper: if the taper starts
+  // amidships the ship reads as a canoe rather than a galleon.
   const hullPath = `M${stern} ${AXIS - BEAM * 0.8}
     C${width * 0.12} ${AXIS - BEAM}, ${width * 0.52} ${AXIS - BEAM}, ${width * 0.72} ${AXIS - BEAM * 0.88}
     C${width * 0.88} ${AXIS - BEAM * 0.62}, ${bow - 5} ${AXIS - 7}, ${bow} ${AXIS}
@@ -67,7 +67,7 @@ export function BoardShipArt({
       className="absolute inset-0 h-full w-full overflow-visible"
       aria-hidden
     >
-      {/* rotate(90) manda (x,y) a (-y,x); el translate lo devuelve al encuadre. */}
+      {/* rotate(90) sends (x,y) to (-y,x); the translate brings it back into frame. */}
       <g transform={vertical ? `translate(${UNIT},0) rotate(90)` : undefined}>
         <defs>
           <clipPath id={clipId}>
@@ -75,7 +75,7 @@ export function BoardShipArt({
           </clipPath>
         </defs>
 
-        {/* Bauprés, asomando por delante de la roda. */}
+        {/* Bowsprit, reaching out beyond the stem. */}
         <path
           d={`M${bow - 2} ${AXIS} H${width - 3}`}
           stroke={color}
@@ -86,7 +86,7 @@ export function BoardShipArt({
 
         <path d={hullPath} fill={color} opacity={sunk ? 0.6 : 0.95} />
 
-        {/* Cubierta hundida, para que el casco tenga borda y no sea una mancha. */}
+        {/* Sunken deck, so the hull has a gunwale instead of being a blob. */}
         <g clipPath={`url(#${clipId})`}>
           <path
             d={hullPath}
@@ -95,7 +95,7 @@ export function BoardShipArt({
             transform={`translate(${width / 2} ${AXIS}) scale(0.9 0.68) translate(${-width / 2} ${-AXIS})`}
           />
           {!simplified &&
-            // Tablazón de cubierta.
+            // Deck planking.
             Array.from({ length: ship.size * 5 }, (_, i) => {
               const x = stern + ((width - stern * 2) * i) / (ship.size * 5);
               return (
@@ -116,13 +116,13 @@ export function BoardShipArt({
           return (
             <g key={i}>
               {!simplified && (
-                // Jarcia: del tope del palo a proa y a popa.
+                // Rigging: from the masthead to bow and stern.
                 <g opacity={0.3} stroke={color} strokeWidth={1.1}>
                   <path d={`M${x} ${AXIS} L${bow} ${AXIS - 3}`} />
                   <path d={`M${x} ${AXIS} L${stern + 4} ${AXIS + 3}`} />
                 </g>
               )}
-              {/* Vela cuadra vista desde arriba: cruza la manga. */}
+              {/* Square sail seen from above: it crosses the beam. */}
               <ellipse
                 cx={x + 6}
                 cy={AXIS}
@@ -149,7 +149,7 @@ export function BoardShipArt({
   );
 }
 
-/** Mascarón de proa: lo que distingue de un vistazo a cada barco. */
+/** Figurehead: what tells the ships apart at a glance. */
 function Figure({ kind, x, color }: { kind: Figurehead; x: number; color: string }) {
   switch (kind) {
     case 'lion':

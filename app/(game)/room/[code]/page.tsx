@@ -19,10 +19,10 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   const [draft, setDraft] = useState<Placement[]>([]);
   const unlockAudio = useAudioStore((state) => state.unlock);
 
-  // Se sortea una flota de partida en el cliente para no romper la hidratación.
+  // A starting fleet is rolled on the client so hydration is not broken.
   useEffect(() => {
     if (draft.length === 0 && view && !view.you.ready) setDraft(randomFleet());
-    // Solo al entrar en fase de colocación: después manda el jugador.
+    // Only when entering the placement phase: after that the player is in charge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.you.ready]);
 
@@ -125,7 +125,7 @@ function RoomCode({ code }: { code: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // El usuario ha cancelado el diálogo de compartir: no hay nada que hacer.
+      // The user dismissed the share sheet: nothing to do.
     }
   };
 

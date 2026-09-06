@@ -5,7 +5,7 @@ import { viewRoomFor } from '@/lib/room';
 
 export const dynamic = 'force-dynamic';
 
-/** GET /api/room/state?code=…&playerId=… — endpoint de polling (1 s). */
+/** GET /api/room/state?code=...&playerId=... - the polling endpoint (1s). */
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;

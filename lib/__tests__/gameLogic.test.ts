@@ -17,7 +17,7 @@ import {
 import { seededRng } from '../rng';
 import type { Placement, ShotLog } from '../types';
 
-/** Flota válida de referencia, separada y dentro del tablero. */
+/** Reference valid fleet, spaced out and inside the board. */
 const VALID_FLEET: Placement[] = [
   { shipId: 'thousand-sunny', row: 0, col: 0, orientation: 'horizontal' },
   { shipId: 'moby-dick', row: 2, col: 0, orientation: 'horizontal' },
@@ -26,8 +26,8 @@ const VALID_FLEET: Placement[] = [
   { shipId: 'red-force', row: 8, col: 0, orientation: 'horizontal' },
 ];
 
-describe('etiquetas de celda', () => {
-  it('usa columna A-J y fila 1-10', () => {
+describe('cell labels', () => {
+  it('uses column A-J and row 1-10', () => {
     expect(cellLabel({ row: 0, col: 0 })).toBe('A1');
     expect(cellLabel({ row: 6, col: 2 })).toBe('C7');
     expect(cellLabel({ row: 9, col: 9 })).toBe('J10');
@@ -35,24 +35,26 @@ describe('etiquetas de celda', () => {
 });
 
 describe('placementCells', () => {
-  it('extiende horizontalmente desde el ancla', () => {
-    expect(placementCells({ shipId: 'red-force', row: 3, col: 4, orientation: 'horizontal' }))
-      .toEqual([
-        { row: 3, col: 4 },
-        { row: 3, col: 5 },
-      ]);
+  it('extends horizontally from the anchor', () => {
+    expect(
+      placementCells({ shipId: 'red-force', row: 3, col: 4, orientation: 'horizontal' }),
+    ).toEqual([
+      { row: 3, col: 4 },
+      { row: 3, col: 5 },
+    ]);
   });
 
-  it('extiende verticalmente desde el ancla', () => {
-    expect(placementCells({ shipId: 'going-merry', row: 1, col: 1, orientation: 'vertical' }))
-      .toEqual([
-        { row: 1, col: 1 },
-        { row: 2, col: 1 },
-        { row: 3, col: 1 },
-      ]);
+  it('extends vertically from the anchor', () => {
+    expect(
+      placementCells({ shipId: 'going-merry', row: 1, col: 1, orientation: 'vertical' }),
+    ).toEqual([
+      { row: 1, col: 1 },
+      { row: 2, col: 1 },
+      { row: 3, col: 1 },
+    ]);
   });
 
-  it('el Thousand Sunny ocupa 5 casillas', () => {
+  it('the Thousand Sunny covers 5 cells', () => {
     expect(
       placementCells({ shipId: 'thousand-sunny', row: 0, col: 0, orientation: 'horizontal' }),
     ).toHaveLength(5);
@@ -60,41 +62,41 @@ describe('placementCells', () => {
 });
 
 describe('validateFleet', () => {
-  it('acepta una flota correcta', () => {
+  it('accepts a valid fleet', () => {
     expect(validateFleet(VALID_FLEET)).toEqual({ ok: true });
   });
 
-  it('rechaza una flota incompleta', () => {
+  it('rejects an incomplete fleet', () => {
     expect(validateFleet(VALID_FLEET.slice(1))).toMatchObject({
       ok: false,
       reason: 'wrong-ship-count',
     });
   });
 
-  it('rechaza barcos duplicados', () => {
+  it('rejects duplicate ships', () => {
     const fleet = [...VALID_FLEET.slice(0, 4), { ...VALID_FLEET[0], row: 8 }];
     expect(validateFleet(fleet)).toMatchObject({ ok: false, reason: 'duplicate-ship' });
   });
 
-  it('rechaza un barco que se sale del tablero', () => {
+  it('rejects a ship that runs off the board', () => {
     const fleet = [...VALID_FLEET];
     fleet[0] = { shipId: 'thousand-sunny', row: 0, col: 6, orientation: 'horizontal' };
     expect(validateFleet(fleet)).toMatchObject({ ok: false, reason: 'out-of-bounds' });
   });
 
-  it('rechaza solapes', () => {
+  it('rejects overlaps', () => {
     const fleet = [...VALID_FLEET];
     fleet[1] = { shipId: 'moby-dick', row: 0, col: 2, orientation: 'horizontal' };
     expect(validateFleet(fleet)).toMatchObject({ ok: false, reason: 'overlap' });
   });
 
-  it.runIf(!ALLOW_ADJACENT_SHIPS)('rechaza barcos que se tocan en diagonal', () => {
+  it.runIf(!ALLOW_ADJACENT_SHIPS)('rejects ships touching diagonally', () => {
     const fleet = [...VALID_FLEET];
     fleet[1] = { shipId: 'moby-dick', row: 1, col: 5, orientation: 'horizontal' };
     expect(validateFleet(fleet)).toMatchObject({ ok: false, reason: 'adjacent' });
   });
 
-  it.runIf(!ALLOW_ADJACENT_SHIPS)('rechaza barcos pegados de costado', () => {
+  it.runIf(!ALLOW_ADJACENT_SHIPS)('rejects ships touching side by side', () => {
     const fleet = [...VALID_FLEET];
     fleet[1] = { shipId: 'moby-dick', row: 1, col: 0, orientation: 'horizontal' };
     expect(validateFleet(fleet)).toMatchObject({ ok: false, reason: 'adjacent' });
@@ -102,12 +104,12 @@ describe('validateFleet', () => {
 });
 
 describe('canPlace', () => {
-  it('permite mover un barco sobre su propia posición anterior', () => {
+  it('allows moving a ship onto its own previous position', () => {
     const moved: Placement = { shipId: 'moby-dick', row: 2, col: 1, orientation: 'horizontal' };
     expect(canPlace(VALID_FLEET, moved)).toBe(true);
   });
 
-  it('rechaza salirse del tablero', () => {
+  it('rejects going off the board', () => {
     expect(
       canPlace([], { shipId: 'thousand-sunny', row: 0, col: 7, orientation: 'horizontal' }),
     ).toBe(false);
@@ -115,7 +117,7 @@ describe('canPlace', () => {
 });
 
 describe('randomFleet', () => {
-  it('genera flotas válidas de forma reproducible', () => {
+  it('generates valid fleets reproducibly', () => {
     for (let seed = 1; seed <= 200; seed++) {
       const fleet = randomFleet(seededRng(seed));
       expect(validateFleet(fleet)).toEqual({ ok: true });
@@ -123,32 +125,32 @@ describe('randomFleet', () => {
     }
   });
 
-  it('la misma semilla produce la misma flota', () => {
+  it('the same seed produces the same fleet', () => {
     expect(randomFleet(seededRng(42))).toEqual(randomFleet(seededRng(42)));
   });
 
-  it('semillas distintas producen flotas distintas', () => {
+  it('different seeds produce different fleets', () => {
     expect(randomFleet(seededRng(1))).not.toEqual(randomFleet(seededRng(2)));
   });
 
-  it('ocupa exactamente 17 casillas', () => {
+  it('covers exactly 17 cells', () => {
     const cells = randomFleet(seededRng(7)).flatMap(placementCells);
     expect(new Set(cells.map((c) => `${c.row},${c.col}`)).size).toBe(TOTAL_SHIP_CELLS);
   });
 });
 
 describe('randomPlacementFor', () => {
-  it('reubica un barco respetando al resto de la flota', () => {
+  it('re-places a ship respecting the rest of the fleet', () => {
     const others = VALID_FLEET.filter((p) => p.shipId !== 'red-force');
     const placement = randomPlacementFor('red-force', others, seededRng(3));
     expect(placement).not.toBeNull();
     expect(validateFleet([...others, placement!])).toEqual({ ok: true });
   });
 
-  it('devuelve null si no queda hueco', () => {
-    // Tablero sintético: filas pares cubiertas de lado a lado. Las impares
-    // quedan libres pero pegadas a un barco, así que la regla de adyacencia
-    // no deja sitio para el Red Force.
+  it('returns null when there is no room left', () => {
+    // Synthetic board: even rows covered end to end. The odd ones are free
+    // but flush against a ship, so the adjacency rule leaves no room for the
+    // Red Force.
     const blocker: Placement[] = [];
     for (let row = 0; row < BOARD_SIZE; row += 2) {
       blocker.push({ shipId: 'thousand-sunny', row, col: 0, orientation: 'horizontal' });
@@ -159,21 +161,21 @@ describe('randomPlacementFor', () => {
 });
 
 describe('resolveShot', () => {
-  it('agua cuando no hay barco', () => {
+  it('water when there is no ship', () => {
     expect(resolveShot(VALID_FLEET, [], { row: 9, col: 9 })).toEqual({
       cell: { row: 9, col: 9 },
       outcome: 'miss',
     });
   });
 
-  it('tocado en la primera casilla de un barco', () => {
+  it('hit on the first cell of a ship', () => {
     expect(resolveShot(VALID_FLEET, [], { row: 8, col: 0 })).toEqual({
       cell: { row: 8, col: 0 },
       outcome: 'hit',
     });
   });
 
-  it('hundido al completar el barco, con nombre y casillas', () => {
+  it('sunk once the ship is completed, with name and cells', () => {
     const log: ShotLog = [resolveShot(VALID_FLEET, [], { row: 8, col: 0 })];
     const final = resolveShot(VALID_FLEET, log, { row: 8, col: 1 });
     expect(final.outcome).toBe('sunk');
@@ -184,7 +186,7 @@ describe('resolveShot', () => {
     ]);
   });
 
-  it('no marca hundido mientras quede una casilla', () => {
+  it('does not mark sunk while one cell remains', () => {
     let log: ShotLog = [];
     for (const col of [0, 1, 2, 3]) {
       const shot = resolveShot(VALID_FLEET, log, { row: 0, col });
@@ -194,19 +196,19 @@ describe('resolveShot', () => {
     expect(resolveShot(VALID_FLEET, log, { row: 0, col: 4 }).outcome).toBe('sunk');
   });
 
-  it('lanza si se repite celda', () => {
+  it('throws when a cell is repeated', () => {
     const log: ShotLog = [resolveShot(VALID_FLEET, [], { row: 9, col: 9 })];
     expect(() => resolveShot(VALID_FLEET, log, { row: 9, col: 9 })).toThrow(/ya disparada/);
   });
 
-  it('lanza si la celda está fuera del tablero', () => {
+  it('throws when the cell is off the board', () => {
     expect(() => resolveShot(VALID_FLEET, [], { row: 10, col: 0 })).toThrow(/fuera del tablero/);
     expect(() => resolveShot(VALID_FLEET, [], { row: -1, col: 0 })).toThrow(/fuera del tablero/);
   });
 });
 
-describe('fin de partida', () => {
-  it('la flota cae exactamente al hundir los 5 barcos', () => {
+describe('end of game', () => {
+  it('the fleet falls exactly when the 5 ships are sunk', () => {
     let log: ShotLog = [];
     for (const placement of VALID_FLEET) {
       for (const cell of placementCells(placement)) {
@@ -218,7 +220,7 @@ describe('fin de partida', () => {
     expect(log).toHaveLength(TOTAL_SHIP_CELLS);
   });
 
-  it('los fallos no cuentan para la victoria', () => {
+  it('misses do not count towards victory', () => {
     const log: ShotLog = [resolveShot(VALID_FLEET, [], { row: 9, col: 9 })];
     expect(isFleetDestroyed(log)).toBe(false);
     expect(hasShotAt(log, { row: 9, col: 9 })).toBe(true);

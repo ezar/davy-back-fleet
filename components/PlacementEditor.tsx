@@ -18,20 +18,20 @@ interface PlacementEditorProps {
   disabled?: boolean;
 }
 
-/** Barco que el jugador tiene "en la mano", arrastrando o esperando destino. */
+/** The ship the player is holding, dragging or waiting to drop. */
 interface Held {
   shipId: ShipId;
   orientation: Orientation;
-  /** Casilla del barco por la que se ha agarrado, para que siga al dedo con naturalidad. */
+  /** Cell of the ship it was grabbed by, so it follows the finger naturally. */
   grabOffset: number;
-  /** Posición previa, a la que se vuelve si se suelta en un sitio inválido. */
+  /** Previous position, returned to if it is dropped somewhere invalid. */
   origin: Placement | null;
   dragging: boolean;
-  /** Celda donde empezó el gesto: si se suelta ahí mismo, es un toque y el barco rota. */
+  /** Cell where the gesture started: dropped on the same one, it is a tap and the ship rotates. */
   downCell?: Cell;
 }
 
-/** Ancla resultante de soltar el barco sobre `cell` habiéndolo agarrado por `grabOffset`. */
+/** Anchor for dropping the ship on `cell` having grabbed it by `grabOffset`. */
 function anchorFor(cell: Cell, held: Held): Placement {
   return held.orientation === 'horizontal'
     ? {
@@ -62,7 +62,7 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
 
   const placedIds = useMemo(() => new Set(placements.map((p) => p.shipId)), [placements]);
 
-  /** Vista previa del barco en la mano sobre la celda apuntada. */
+  /** Preview of the held ship over the cell being pointed at. */
   const previewPlacement = held && hover ? anchorFor(hover, held) : null;
   const previewValid = previewPlacement ? canPlace(placements, previewPlacement) : true;
 
@@ -77,8 +77,8 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
         setHover(null);
       };
 
-      // Soltar sobre la misma casilla en la que se pulsó no es un movimiento:
-      // es un toque, y un toque gira el barco.
+      // Releasing on the same cell it was pressed on is not a move:
+      // it is a tap, and a tap rotates the ship.
       const tapped = cell && held.downCell && cellKey(cell) === cellKey(held.downCell);
       if (tapped && held.origin) {
         const flipped: Held = {
@@ -101,7 +101,7 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
     const cell = cellFromPointer(event.clientX, event.clientY);
     if (!cell) return;
 
-    // ¿Hay un barco bajo el dedo? Se levanta y se arrastra.
+    // Is there a ship under the finger? Pick it up and drag it.
     const existing = placements.find((placement) =>
       placementCells(placement).some((c) => cellKey(c) === cellKey(cell)),
     );
@@ -121,7 +121,7 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
       return;
     }
 
-    // Si no, se coloca el barco que estuviera seleccionado en la lista.
+    // If not, drop whichever ship was selected in the list.
     if (held && !held.dragging) {
       setHover(cell);
       drop(cell);
@@ -235,8 +235,8 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
 }
 
 /**
- * La flota entera con su estado. Sustituye al muelle: de un vistazo se ve
- * qué queda por colocar, y los pendientes se seleccionan para soltarlos.
+ * The whole fleet with its status. It replaces the dock: one glance shows
+ * what is left to place, and pending ships are selected to drop them.
  */
 function FleetChecklist({
   placedIds,

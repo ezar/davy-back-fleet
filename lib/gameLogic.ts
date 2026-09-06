@@ -10,32 +10,30 @@ import type {
   ShotResult,
 } from './types';
 
-/** Lado del tablero: 10×10 clásico. */
+/** Board side: the classic 10x10. */
 export const BOARD_SIZE = 10;
 
 /**
- * Regla de colocación: `false` = los barcos no pueden tocarse, ni siquiera
- * en diagonal (variante clásica española). Cambiar a `true` permite
- * flotas apiñadas; el resto de la lógica y la IA funcionan igual.
+ * Placement rule: `false` means ships may not touch, not even diagonally
+ * (the classic Spanish variant). Setting it to `true` allows packed fleets;
+ * the rest of the logic and the AI work unchanged either way.
  */
 export const ALLOW_ADJACENT_SHIPS = false;
 
-/** Etiquetas de columna: A..J. */
+/** Column labels: A..J. */
 export const COLUMN_LABELS = Array.from({ length: BOARD_SIZE }, (_, i) =>
   String.fromCharCode(65 + i),
 );
 
-/** Etiquetas de fila: 1..10. */
-export const ROW_LABELS = Array.from({ length: BOARD_SIZE }, (_, i) =>
-  String(i + 1),
-);
+/** Row labels: 1..10. */
+export const ROW_LABELS = Array.from({ length: BOARD_SIZE }, (_, i) => String(i + 1));
 
-/** "C7" a partir de {row: 6, col: 2}. */
+/** "C7" from {row: 6, col: 2}. */
 export function cellLabel(cell: Cell): string {
   return `${COLUMN_LABELS[cell.col] ?? '?'}${cell.row + 1}`;
 }
 
-/** Clave estable para usar celdas en Set/Map. */
+/** Stable key for using cells in a Set or Map. */
 export function cellKey(cell: Cell): string {
   return `${cell.row},${cell.col}`;
 }
@@ -55,7 +53,7 @@ export function isInsideBoard(cell: Cell): boolean {
   );
 }
 
-/** Todas las celdas del tablero, en orden de lectura. */
+/** Every cell of the board, in reading order. */
 export function allCells(): Cell[] {
   const cells: Cell[] = [];
   for (let row = 0; row < BOARD_SIZE; row++) {
@@ -64,7 +62,7 @@ export function allCells(): Cell[] {
   return cells;
 }
 
-/** Las 4 celdas en cruz alrededor de una celda, recortadas al tablero. */
+/** The 4 cells orthogonally around a cell, clipped to the board. */
 export function crossNeighbours(cell: Cell): Cell[] {
   return [
     { row: cell.row - 1, col: cell.col },
@@ -74,7 +72,7 @@ export function crossNeighbours(cell: Cell): Cell[] {
   ].filter(isInsideBoard);
 }
 
-/** Celdas que ocupa un barco colocado. */
+/** Cells occupied by a placed ship. */
 export function placementCells(placement: Placement): Cell[] {
   const ship = getShip(placement.shipId);
   const size = ship?.size ?? 0;
@@ -85,7 +83,7 @@ export function placementCells(placement: Placement): Cell[] {
   );
 }
 
-/** Todas las celdas ocupadas por una flota. */
+/** Every cell occupied by a fleet. */
 export function fleetCells(placements: readonly Placement[]): Cell[] {
   return placements.flatMap(placementCells);
 }
@@ -95,7 +93,7 @@ function isPlacementInsideBoard(placement: Placement): boolean {
   return cells.length > 0 && cells.every(isInsideBoard);
 }
 
-/** Celdas que un barco bloquea para los demás (las suyas + su halo si no se permite adyacencia). */
+/** Cells a ship denies to the others (its own, plus its halo when adjacency is banned). */
 function blockedCells(placement: Placement): Cell[] {
   const own = placementCells(placement);
   if (ALLOW_ADJACENT_SHIPS) return own;
@@ -112,13 +110,10 @@ function blockedCells(placement: Placement): Cell[] {
 }
 
 /**
- * ¿Cabe `candidate` junto a los barcos ya colocados?
- * Comprueba límites, solape y (según la regla) adyacencia.
+ * Does `candidate` fit alongside the ships already placed?
+ * Checks bounds, overlap and (per the rule) adjacency.
  */
-export function canPlace(
-  existing: readonly Placement[],
-  candidate: Placement,
-): boolean {
+export function canPlace(existing: readonly Placement[], candidate: Placement): boolean {
   if (!isPlacementInsideBoard(candidate)) return false;
   const taken = new Set<string>();
   for (const placement of existing) {
@@ -129,8 +124,8 @@ export function canPlace(
 }
 
 /**
- * Valida una flota completa: los 5 barcos, sin repetir, dentro del tablero,
- * sin solapes y respetando la regla de adyacencia.
+ * Validates a whole fleet: all 5 ships, no duplicates, inside the board,
+ * no overlaps, and respecting the adjacency rule.
  */
 export function validateFleet(placements: readonly Placement[]): FleetValidation {
   if (placements.length !== FLEET.length) {
@@ -176,7 +171,7 @@ export function validateFleet(placements: readonly Placement[]): FleetValidation
   return { ok: true };
 }
 
-/** Todas las posiciones en las que cabe un barco de tamaño `size`. */
+/** Every position where a ship of `size` cells fits. */
 function candidatePlacements(shipId: ShipId, size: number): Placement[] {
   const candidates: Placement[] = [];
   const orientations: Orientation[] = ['horizontal', 'vertical'];
@@ -193,9 +188,9 @@ function candidatePlacements(shipId: ShipId, size: number): Placement[] {
 }
 
 /**
- * Genera una flota aleatoria válida. Coloca de mayor a menor eligiendo entre
- * las posiciones legales que quedan; si un barco se queda sin hueco, reinicia
- * la flota entera y vuelve a intentarlo.
+ * Generates a valid random fleet. Places largest first, choosing among the
+ * legal positions left; if a ship runs out of room, it restarts the whole
+ * fleet and tries again.
  */
 export function randomFleet(rng: Rng = defaultRng): Placement[] {
   const MAX_ATTEMPTS = 100;
@@ -214,11 +209,11 @@ export function randomFleet(rng: Rng = defaultRng): Placement[] {
     }
     if (!failed) return placements;
   }
-  // Inalcanzable con la flota 5-4-3-3-2 en 10×10, pero no fallamos en silencio.
+  // Unreachable for a 5-4-3-3-2 fleet on 10x10, but never fail silently.
   throw new Error('No se ha podido generar una flota aleatoria válida');
 }
 
-/** Reubica un solo barco al azar, dejando el resto de la flota intacto. */
+/** Re-places a single ship at random, leaving the rest of the fleet alone. */
 export function randomPlacementFor(
   shipId: ShipId,
   others: readonly Placement[],
@@ -232,21 +227,21 @@ export function randomPlacementFor(
   return legal.length > 0 ? pick(rng, legal) : null;
 }
 
-/** ¿Ya se ha disparado a esa celda? */
+/** Has this cell already been shot at? */
 export function hasShotAt(log: ShotLog, cell: Cell): boolean {
   return log.some((shot) => cellsEqual(shot.cell, cell));
 }
 
-/** Celdas todavía disponibles para disparar. */
+/** Cells still available to shoot at. */
 export function untriedCells(log: ShotLog): Cell[] {
   const tried = new Set(log.map((shot) => cellKey(shot.cell)));
   return allCells().filter((cell) => !tried.has(cellKey(cell)));
 }
 
 /**
- * Resuelve un disparo contra una flota.
- * Lanza si la celda está fuera del tablero o ya se había disparado:
- * ambas cosas son errores de quien llama, no jugadas válidas.
+ * Resolves a shot against a fleet.
+ * Throws when the cell is off the board or was already shot at: both are
+ * caller bugs, not legal moves.
  */
 export function resolveShot(
   placements: readonly Placement[],
@@ -277,19 +272,19 @@ export function resolveShot(
     : { cell, outcome: 'hit' };
 }
 
-/** Ids de los barcos ya hundidos, según el historial. */
+/** Ids of the ships already sunk, according to the log. */
 export function sunkShipIds(log: ShotLog): ShipId[] {
   return log
     .filter((shot) => shot.outcome === 'sunk' && shot.sunkShipId)
     .map((shot) => shot.sunkShipId as ShipId);
 }
 
-/** ¿Está hundida toda la flota? */
+/** Is the whole fleet sunk? */
 export function isFleetDestroyed(log: ShotLog): boolean {
   return sunkShipIds(log).length === FLEET.length;
 }
 
-/** Casillas tocadas sobre el total de la flota: para la barra de progreso. */
+/** Cells hit out of the fleet total: for the damage read-out. */
 export function damageReport(log: ShotLog): { hits: number; total: number } {
   return {
     hits: log.filter((shot) => shot.outcome !== 'miss').length,

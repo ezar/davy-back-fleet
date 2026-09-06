@@ -7,16 +7,16 @@ import type { Cell, Placement, ShipId, ShotLog } from '@/lib/types';
 
 export type SoloPhase = 'idle' | 'placing' | 'battle' | 'finished';
 
-/** Pausa entre disparos de la IA, para que se lea lo que está pasando. */
+/** Pause between AI shots, so what happens can be read. */
 const AI_DELAY_MS = 700;
 
 interface SoloState {
   phase: SoloPhase;
   playerFleet: Placement[];
   aiFleet: Placement[];
-  /** Disparos que has hecho tú al tablero de la IA. */
+  /** Shots you have fired at the AI board. */
   shotsAtAi: ShotLog;
-  /** Disparos que la IA ha hecho a tu tablero. */
+  /** Shots the AI has fired at yours. */
   shotsAtPlayer: ShotLog;
   turn: 'player' | 'ai';
   winner: 'player' | 'ai' | null;
@@ -24,7 +24,7 @@ interface SoloState {
   lastSunkByPlayer: ShipId | null;
   lastSunkByAi: ShipId | null;
 
-  /** Arranca una partida nueva en fase de colocación. Solo en cliente. */
+  /** Starts a new game in the placement phase. Client only. */
   newGame: () => void;
   setPlayerFleet: (placements: Placement[]) => void;
   startBattle: () => void;
@@ -33,8 +33,8 @@ interface SoloState {
 
 export const useGameStore = create<SoloState>((set, get) => {
   /**
-   * Turno de la IA: dispara y, si acierta, encadena otro disparo,
-   * igual que el jugador. Se detiene al fallar o al ganar.
+   * The AI turn: it fires and, on a hit, chains another shot just as the
+   * player does. It stops on a miss or on winning.
    */
   function runAiTurn() {
     const state = get();
@@ -112,7 +112,7 @@ export const useGameStore = create<SoloState>((set, get) => {
         lastSunkByPlayer: result.sunkShipId ?? state.lastSunkByPlayer,
         winner: defeated ? 'player' : null,
         phase: defeated ? 'finished' : 'battle',
-        // Acertar da derecho a repetir, como en el juego de mesa.
+        // A hit earns another go, as in the board game.
         turn: result.outcome === 'miss' ? 'ai' : 'player',
       });
 

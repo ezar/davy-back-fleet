@@ -1,20 +1,14 @@
 import { MIN_SHIP_SIZE } from './fleet';
-import {
-  cellKey,
-  cellsEqual,
-  crossNeighbours,
-  isInsideBoard,
-  untriedCells,
-} from './gameLogic';
+import { cellKey, cellsEqual, crossNeighbours, isInsideBoard, untriedCells } from './gameLogic';
 import { type Rng, defaultRng, pick } from './rng';
 import type { Cell, ShotLog } from './types';
 
 /**
- * Estrategia de la fase de caza:
- * - `random`: disparo aleatorio entre las celdas no probadas (v1 de la spec).
- * - `parity`: aleatorio pero restringido a un patrón de damero. Como el barco
- *   más pequeño ocupa 2 casillas, sigue encontrando toda la flota y necesita
- *   la mitad de disparos. Reservado para el futuro modo "difícil".
+ * Hunting-phase strategy:
+ * - `random`: a random shot among the untried cells (the spec's v1).
+ * - `parity`: still random, but restricted to a checkerboard. Since the
+ *   smallest ship covers 2 cells it still finds the whole fleet, in half
+ *   the shots. Kept for the future "hard" mode.
  */
 export type HuntStrategy = 'random' | 'parity';
 
@@ -22,15 +16,15 @@ export const DEFAULT_HUNT_STRATEGY: HuntStrategy = 'random';
 
 export type AiPhase = 'hunt' | 'target';
 
-/** Qué está haciendo la IA y por qué: útil para la UI y para depurar. */
+/** What the AI is doing and why: handy for the UI and for debugging. */
 export interface AiDecision {
   cell: Cell;
   phase: AiPhase;
 }
 
 /**
- * Impactos que todavía no pertenecen a ningún barco hundido, es decir,
- * el rastro del barco que la IA está persiguiendo ahora mismo.
+ * Hits that do not belong to any sunk ship yet, i.e. the trail of the ship
+ * the AI is currently chasing.
  */
 export function unresolvedHits(log: ShotLog): Cell[] {
   const resolved = new Set<string>();
@@ -43,8 +37,8 @@ export function unresolvedHits(log: ShotLog): Cell[] {
 }
 
 /**
- * Longitud del tramo contiguo de impactos sin resolver que pasa por `anchor`
- * en una dirección, junto con las dos celdas que lo extienden.
+ * Length of the contiguous run of unresolved hits through `anchor` along one
+ * direction, plus the two cells that would extend it.
  */
 function runExtensions(
   anchor: Cell,
@@ -68,16 +62,16 @@ function runExtensions(
 }
 
 /**
- * Candidatos en fase objetivo alrededor del último impacto sin resolver.
- * Si ya hay dos impactos alineados, solo extiende esa dirección;
- * si solo hay uno, prueba las 4 celdas en cruz.
+ * Target-phase candidates around the latest unresolved hit.
+ * With two hits already aligned it only extends that direction; with a
+ * single hit it tries the 4 orthogonal cells.
  */
 function targetCandidates(log: ShotLog, tried: Set<string>): Cell[] {
   const hits = unresolvedHits(log);
   if (hits.length === 0) return [];
 
   const hitKeys = new Set(hits.map(cellKey));
-  // Del impacto más reciente hacia atrás: perseguimos el rastro más fresco.
+  // Newest hit backwards: chase the freshest trail first.
   for (let i = hits.length - 1; i >= 0; i--) {
     const anchor = hits[i];
     const horizontal = runExtensions(anchor, hitKeys, { row: 0, col: 1 });
@@ -97,7 +91,7 @@ function targetCandidates(log: ShotLog, tried: Set<string>): Cell[] {
   return [];
 }
 
-/** Celdas de caza según la estrategia, con repliegue a cualquier celda libre. */
+/** Hunting cells for the strategy, falling back to any free cell. */
 function huntCandidates(available: Cell[], strategy: HuntStrategy): Cell[] {
   if (strategy === 'parity') {
     const parity = available.filter((cell) => (cell.row + cell.col) % MIN_SHIP_SIZE === 0);
@@ -107,10 +101,10 @@ function huntCandidates(available: Cell[], strategy: HuntStrategy): Cell[] {
 }
 
 /**
- * Elige el siguiente disparo de la IA a partir del historial de sus disparos.
+ * Picks the AI's next shot from its own shot log.
  *
- * Es una función pura: no guarda estado entre turnos, lo deriva del log.
- * Fase objetivo si hay impactos sin hundir, fase caza en caso contrario.
+ * A pure function: it keeps no state between turns, it derives it from the
+ * log. Target phase while hits are unsunk, hunting phase otherwise.
  */
 export function chooseAiShot(
   log: ShotLog,
@@ -129,10 +123,10 @@ export function chooseAiShot(
   return { cell: pick(rng, huntCandidates(available, strategy)), phase: 'hunt' };
 }
 
-/** Coloca la flota de la IA. Reexportado para que el modo solitario tenga una sola puerta de entrada. */
+/** Places the AI fleet. Re-exported so solo mode has a single entry point. */
 export { randomFleet as randomAiFleet } from './gameLogic';
 
-/** ¿Está `cell` en el log? Pequeño ayudante para la UI del modo solitario. */
+/** Is `cell` in the log? Small helper for the solo-mode UI. */
 export function aiHasShotAt(log: ShotLog, cell: Cell): boolean {
   return log.some((shot) => cellsEqual(shot.cell, cell));
 }

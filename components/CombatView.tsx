@@ -13,11 +13,11 @@ import { EnemyFleetChips, OwnFleetStatus, afloatCount } from './FleetStatus';
 interface CombatViewProps {
   opponentName: string;
   yourTurn: boolean;
-  /** Texto que se muestra cuando no es tu turno. */
+  /** Text shown while it is not your turn. */
   waitingLabel: string;
-  /** Disparos que has hecho tú al tablero rival. */
+  /** Shots you have fired at the enemy board. */
   enemyShots: ShotLog;
-  /** Disparos que has recibido en el tuyo. */
+  /** Shots you have taken on your own. */
   ownShots: ShotLog;
   ownPlacements: Placement[] | null;
   onShoot: (cell: Cell) => void;
@@ -43,7 +43,7 @@ export function CombatView({
     setShake(outcome === 'sunk' ? 'shake-sunk' : 'shake-hit');
   }, []);
 
-  // La clase de animación tiene que soltarse para poder volver a aplicarse.
+  // The animation class has to be released before it can be applied again.
   useEffect(() => {
     if (!shake) return;
     const timer = setTimeout(() => setShake(''), 560);
@@ -56,16 +56,12 @@ export function CombatView({
       <LastMove opponentName={opponentName} ownShots={ownShots} />
 
       <section className="space-y-2">
-        <SectionHeader
-          title={`Flota de ${opponentName}`}
-          accent
-          afloat={afloatCount(enemyShots)}
-        />
+        <SectionHeader title={`Flota de ${opponentName}`} accent afloat={afloatCount(enemyShots)} />
         <Board
           variant="enemy"
           shots={enemyShots}
           onCellClick={(cell) => {
-            // Primer gesto del usuario: es cuando el navegador deja nacer el audio.
+            // First user gesture: the moment the browser lets audio come to life.
             unlock();
             onShoot(cell);
           }}
@@ -162,9 +158,9 @@ function TurnBanner({ yourTurn, waitingLabel }: { yourTurn: boolean; waitingLabe
 }
 
 /**
- * Qué hizo el rival en su último disparo. En una partida por turnos a
- * distancia puedes volver al juego minutos después: sin esto no hay forma
- * de saber qué pasó mientras no mirabas.
+ * What the opponent did on their last shot. In a remote turn-based game you
+ * can come back minutes later: without this there is no way to know what
+ * happened while you were not looking.
  */
 function LastMove({ opponentName, ownShots }: { opponentName: string; ownShots: ShotLog }) {
   const last = ownShots[ownShots.length - 1];
@@ -188,16 +184,19 @@ function LastMove({ opponentName, ownShots }: { opponentName: string; ownShots: 
   );
 }
 
-/** "la IA" abre frase en la línea de última jugada, y ahí va con mayúscula. */
+/** "la IA" opens the last-move sentence, so it needs a capital there. */
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** Cabecera común de las pantallas de partida. */
+/** Shared header for the in-game screens. */
 export function GameHeader({ right }: { right?: ReactNode }) {
   return (
     <header className="flex h-9 items-center justify-between gap-3">
-      <a href="/" className="flex items-center gap-1.5 text-sm font-medium text-foam/55 hover:text-foam">
+      <a
+        href="/"
+        className="flex items-center gap-1.5 text-sm font-medium text-foam/55 hover:text-foam"
+      >
         <svg
           viewBox="0 0 24 24"
           className="h-[17px] w-[17px]"

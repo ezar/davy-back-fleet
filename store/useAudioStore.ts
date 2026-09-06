@@ -24,18 +24,18 @@ function storeMute(muted: boolean): void {
   try {
     localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
   } catch {
-    // Modo privado: la preferencia dura lo que la pestaña.
+    // Private mode: the preference lasts as long as the tab.
   }
 }
 
 interface AudioState {
   muted: boolean;
-  /** El audio no existe hasta que el usuario toca algo: lo exige el navegador. */
+  /** Audio does not exist until the user touches something: the browser demands it. */
   unlocked: boolean;
-  /** Lee la preferencia guardada. Se llama desde un efecto, nunca en el render. */
+  /** Reads the stored preference. Called from an effect, never during render. */
   hydrate: () => void;
   toggleMuted: () => void;
-  /** Arranca el audio dentro de un gesto del usuario. */
+  /** Starts audio from within a user gesture. */
   unlock: () => void;
   play: (sfx: Sfx) => void;
 }

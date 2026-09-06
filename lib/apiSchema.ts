@@ -3,8 +3,8 @@ import { RoomError, isValidRoomCode, normalizeRoomCode } from './room';
 import type { Cell, Orientation, Placement, ShipId } from './types';
 
 /**
- * Validación de todo lo que llega del cliente. Las rutas API son públicas:
- * nada de lo que entra aquí se considera de fiar.
+ * Validation of everything arriving from the client. The API routes are
+ * public: nothing that comes in here is trusted.
  */
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -59,9 +59,9 @@ export function requireCell(raw: unknown): Cell {
 const ORIENTATIONS: Orientation[] = ['horizontal', 'vertical'];
 
 /**
- * Convierte la flota recibida en `Placement[]` bien tipado.
- * Las reglas del juego (solape, adyacencia, barcos completos) las comprueba
- * después `validateFleet`; aquí solo se garantiza la forma.
+ * Turns the received fleet into a well-typed `Placement[]`.
+ * The game rules (overlap, adjacency, complete fleet) are checked afterwards
+ * by `validateFleet`; this only guarantees the shape.
  */
 export function requirePlacements(raw: unknown): Placement[] {
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > 10) {

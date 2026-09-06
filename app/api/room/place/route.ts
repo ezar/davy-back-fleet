@@ -5,7 +5,7 @@ import { RoomError, applyPlacement, seatOf, viewRoomFor } from '@/lib/room';
 
 export const dynamic = 'force-dynamic';
 
-/** POST /api/room/place — confirma la flota de un jugador. */
+/** POST /api/room/place - confirms a player's fleet. */
 export async function POST(request: Request) {
   try {
     const body = await readJsonBody(request);
@@ -19,8 +19,13 @@ export async function POST(request: Request) {
     if (!seat) throw new RoomError('not-a-player', 'No perteneces a esta sala');
 
     const updated = applyPlacement(room, seat, placements);
-    // Cada jugador escribe solo su asiento: los dos pueden colocar a la vez.
-    await store.writeSeat(code, seat, seat === 'host' ? updated.host : updated.guest!, updated.meta);
+    // Each player writes only their own seat: both can place at the same time.
+    await store.writeSeat(
+      code,
+      seat,
+      seat === 'host' ? updated.host : updated.guest!,
+      updated.meta,
+    );
 
     return jsonResponse({ view: viewRoomFor(updated, playerId) });
   } catch (error) {

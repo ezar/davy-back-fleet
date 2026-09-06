@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
 import { type BoardView, useSettingsStore } from '@/store/useSettingsStore';
 
-/** Ajustes de la partida: vista del tablero y sonido. */
+/** In-game settings: board view and sound. */
 export function SettingsMenu() {
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
@@ -19,13 +19,13 @@ export function SettingsMenu() {
   const hydrateAudio = useAudioStore((state) => state.hydrate);
   const unlock = useAudioStore((state) => state.unlock);
 
-  // Las preferencias viven en localStorage: solo existen en el cliente.
+  // Preferences live in localStorage: they only exist on the client.
   useEffect(() => {
     hydrateView();
     hydrateAudio();
   }, [hydrateView, hydrateAudio]);
 
-  // Cerrar al tocar fuera.
+  // Close on an outside tap.
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => {
