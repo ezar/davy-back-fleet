@@ -1,6 +1,6 @@
 'use client';
 
-import type { RoomView } from './room';
+import type { RoomRules, RoomView } from './room';
 import type { Cell, Placement, ShotResult } from './types';
 
 /** HTTP client for the room routes. Everything that talks to the server goes through here. */
@@ -42,7 +42,8 @@ export interface JoinResponse {
   view: RoomView;
 }
 
-export const createRoomRequest = (name: string) => post<JoinResponse>('/api/room/create', { name });
+export const createRoomRequest = (name: string, rules: RoomRules) =>
+  post<JoinResponse>('/api/room/create', { name, rules });
 
 export const joinRoomRequest = (code: string, name: string) =>
   post<JoinResponse>('/api/room/join', { code, name });
@@ -57,6 +58,9 @@ export const placeFleetRequest = (code: string, playerId: string, placements: Pl
 
 export const shootRequest = (code: string, playerId: string, cell: Cell) =>
   post<{ view: RoomView; result: ShotResult }>('/api/room/shoot', { code, playerId, cell });
+
+export const rematchRequest = (code: string, playerId: string) =>
+  post<{ view: RoomView }>('/api/room/rematch', { code, playerId });
 
 /** The player's session in a room, stored so it survives a reload. */
 const sessionKey = (code: string) => `dbf:session:${code}`;

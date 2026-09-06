@@ -1,6 +1,8 @@
 'use client';
 
 import { create } from 'zustand';
+import { DEFAULT_HUNT_STRATEGY, type HuntStrategy } from '@/lib/aiOpponent';
+import { DEFAULT_RULES, type RoomRules, normalizeRules } from '@/lib/room';
 
 /**
  * `tilted` (the default): board tilted in perspective, with the ships lifted
@@ -13,6 +15,9 @@ import { create } from 'zustand';
 export type BoardView = 'flat' | 'tilted';
 
 const VIEW_KEY = 'dbf:view';
+const AI_KEY = 'dbf:ai';
+const RULES_KEY = 'dbf:rules';
+const ALERTS_KEY = 'dbf:alerts';
 
 function readStoredView(): BoardView {
   try {
@@ -23,24 +28,100 @@ function readStoredView(): BoardView {
   }
 }
 
+function readStoredStrategy(): HuntStrategy {
+  try {
+    // Anything unrecognised falls back to the default, never to the hard one.
+    return localStorage.getItem(AI_KEY) === 'density' ? 'density' : DEFAULT_HUNT_STRATEGY;
+  } catch {
+    return DEFAULT_HUNT_STRATEGY;
+  }
+}
+
+function readStoredRules(): RoomRules {
+  try {
+    const raw = localStorage.getItem(RULES_KEY);
+    return raw ? normalizeRules(JSON.parse(raw)) : DEFAULT_RULES;
+  } catch {
+    // Unparsable or unreadable: the standard rules, never a half-read set.
+    return DEFAULT_RULES;
+  }
+}
+
+function readStoredAlerts(): boolean {
+  try {
+    return localStorage.getItem(ALERTS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 interface SettingsState {
   view: BoardView;
-  /** Reads the stored preference. Called from an effect, never during render. */
+  /**
+   * How the AI hunts while it has no trail to follow. Read when a game
+   * starts, not on every shot: changing it mid-game would be unfair.
+   */
+  aiStrategy: HuntStrategy;
+  /**
+   * The player's preferred house rules: used for a solo game and offered as
+   * the default when creating a room. A room freezes its own copy, so
+   * changing this never alters a game already in progress.
+   */
+  rules: RoomRules;
+  /**
+   * Browser notifications when it is your turn. Off until asked for: it
+   * needs a permission the player has to grant from a gesture.
+   */
+  turnAlerts: boolean;
+  /** Reads the stored preferences. Called from an effect, never during render. */
   hydrate: () => void;
   setView: (view: BoardView) => void;
+  setAiStrategy: (strategy: HuntStrategy) => void;
+  setRule: <K extends keyof RoomRules>(rule: K, value: RoomRules[K]) => void;
+  setTurnAlerts: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   view: 'tilted',
+  aiStrategy: DEFAULT_HUNT_STRATEGY,
+  rules: DEFAULT_RULES,
+  turnAlerts: false,
 
-  hydrate: () => set({ view: readStoredView() }),
+  hydrate: () =>
+    set({
+      view: readStoredView(),
+      aiStrategy: readStoredStrategy(),
+      rules: readStoredRules(),
+      turnAlerts: readStoredAlerts(),
+    }),
 
   setView: (view) => {
     set({ view });
-    try {
-      localStorage.setItem(VIEW_KEY, view);
-    } catch {
-      // Private mode: the preference lasts as long as the tab.
-    }
+    store(VIEW_KEY, view);
+  },
+
+  setAiStrategy: (strategy) => {
+    set({ aiStrategy: strategy });
+    store(AI_KEY, strategy);
+  },
+
+  setRule: (rule, value) =>
+    set((state) => {
+      const rules = { ...state.rules, [rule]: value };
+      store(RULES_KEY, JSON.stringify(rules));
+      return { rules };
+    }),
+
+  setTurnAlerts: (enabled) => {
+    set({ turnAlerts: enabled });
+    store(ALERTS_KEY, enabled ? '1' : '0');
   },
 }));
+
+function store(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Private mode: the preference lasts as long as the tab.
+  }
+}

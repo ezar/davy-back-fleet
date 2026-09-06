@@ -12,6 +12,40 @@ import type { Cell, Placement, ShotLog, ShotResult } from './types';
 export type Seat = 'host' | 'guest';
 
 /**
+ * The house rules of a room, chosen when it is created and fixed for its
+ * whole life: both players have to be playing the same game.
+ */
+export interface RoomRules {
+  /** A hit earns another shot. Off, the turn always alternates. */
+  extraTurnOnHit: boolean;
+  /** Ships may touch, even diagonally. */
+  allowAdjacent: boolean;
+}
+
+export const DEFAULT_RULES: RoomRules = {
+  extraTurnOnHit: true,
+  allowAdjacent: false,
+};
+
+/**
+ * Rules from untrusted input, or from a room stored before rules existed.
+ * Anything missing or malformed falls back to the default, so an old room
+ * keeps playing exactly as it did.
+ */
+export function normalizeRules(raw: unknown): RoomRules {
+  if (typeof raw !== 'object' || raw === null) return DEFAULT_RULES;
+  const value = raw as Partial<Record<keyof RoomRules, unknown>>;
+  return {
+    extraTurnOnHit:
+      typeof value.extraTurnOnHit === 'boolean'
+        ? value.extraTurnOnHit
+        : DEFAULT_RULES.extraTurnOnHit,
+    allowAdjacent:
+      typeof value.allowAdjacent === 'boolean' ? value.allowAdjacent : DEFAULT_RULES.allowAdjacent,
+  };
+}
+
+/**
  * Game phase. Never persisted: it is derived from the players' state, so two
  * devices writing at once can never leave the room half-updated.
  */
@@ -34,6 +68,10 @@ export interface RoomMeta {
   updatedAt: number;
   /** Whose turn it is to fire. Only `applyShot` writes it, and turns serialise it. */
   turn: Seat;
+  /** Chosen when the room is created. Optional: rooms stored before it existed. */
+  rules?: RoomRules;
+  /** Games played in this room. Optional: rooms stored before rematches existed. */
+  round?: number;
 }
 
 export interface Room {
@@ -42,11 +80,26 @@ export interface Room {
   guest: RoomPlayer | null;
 }
 
+/** The rules actually in force, filling in for rooms stored before they existed. */
+export function rulesOf(room: Room): RoomRules {
+  return normalizeRules(room.meta.rules);
+}
+
+/** Which game of the room this is. The first one is 1. */
+export function roundOf(room: Room): number {
+  const round = room.meta.round;
+  return typeof round === 'number' && round >= 1 ? Math.floor(round) : 1;
+}
+
 /** The room as one player sees it, already redacted. */
 export interface RoomView {
   code: string;
   phase: RoomPhase;
   seat: Seat;
+  /** The house rules, so both clients place and read the board the same way. */
+  rules: RoomRules;
+  /** Bumped by a rematch, so a client can tell a new game from the old one. */
+  round: number;
   updatedAt: number;
   yourTurn: boolean;
   you: {
@@ -161,9 +214,15 @@ function playerAt(room: Room, seat: Seat): RoomPlayer | null {
   return seat === 'host' ? room.host : room.guest;
 }
 
-export function createRoom(code: string, hostName: string, hostId: string, now = Date.now()): Room {
+export function createRoom(
+  code: string,
+  hostName: string,
+  hostId: string,
+  now = Date.now(),
+  rules: RoomRules = DEFAULT_RULES,
+): Room {
   return {
-    meta: { code, createdAt: now, updatedAt: now, turn: 'host' },
+    meta: { code, createdAt: now, updatedAt: now, turn: 'host', rules, round: 1 },
     host: { id: hostId, name: hostName, placements: null, shotsReceived: [], joinedAt: now },
     guest: null,
   };
@@ -196,7 +255,7 @@ export function applyPlacement(
   if (phase !== 'placing' && phase !== 'waiting') {
     throw new RoomError('wrong-phase', 'Ya no se puede recolocar la flota');
   }
-  const validation = validateFleet(placements);
+  const validation = validateFleet(placements, rulesOf(room).allowAdjacent);
   if (!validation.ok) {
     throw new RoomError('invalid-fleet', `Flota inválida: ${validation.reason}`);
   }
@@ -208,6 +267,32 @@ export function applyPlacement(
     meta: { ...room.meta, updatedAt: now },
     host: seat === 'host' ? updated : room.host,
     guest: seat === 'guest' ? updated : room.guest,
+  };
+}
+
+/**
+ * Starts another game in the same room, keeping the players, their names and
+ * the house rules. Whoever lost fires first.
+ *
+ * Only from `finished`, which is what makes it safe to rewrite both seats at
+ * once: nobody is playing. It also stops a stale client from wiping a
+ * rematch already under way, because by then the room is back in `placing`
+ * and this throws.
+ */
+export function rematch(room: Room, now = Date.now()): Room {
+  if (roomPhase(room) !== 'finished') {
+    throw new RoomError('wrong-phase', 'Todavía no ha terminado la partida');
+  }
+  const beaten = loser(room) ?? 'host';
+  const reset = (player: RoomPlayer): RoomPlayer => ({
+    ...player,
+    placements: null,
+    shotsReceived: [],
+  });
+  return {
+    meta: { ...room.meta, updatedAt: now, turn: beaten, round: roundOf(room) + 1 },
+    host: reset(room.host),
+    guest: room.guest ? reset(room.guest) : null,
   };
 }
 
@@ -243,8 +328,8 @@ export function applyShot(
     shotsReceived: [...defender.shotsReceived, result],
   };
 
-  // A hit earns another turn, as in the classic board game.
-  const keepsTurn = result.outcome !== 'miss';
+  // A hit earns another turn, unless the room turned that rule off.
+  const keepsTurn = rulesOf(room).extraTurnOnHit && result.outcome !== 'miss';
   const next: Room = {
     meta: { ...room.meta, updatedAt: now, turn: keepsTurn ? seat : defenderSeat },
     host: defenderSeat === 'host' ? updated : room.host,
@@ -270,6 +355,8 @@ export function viewRoomFor(room: Room, playerId: string): RoomView {
     code: room.meta.code,
     phase,
     seat,
+    rules: rulesOf(room),
+    round: roundOf(room),
     updatedAt: room.meta.updatedAt,
     yourTurn: phase === 'battle' && room.meta.turn === seat,
     you: {

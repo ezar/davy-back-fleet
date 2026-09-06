@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { placementCells, randomFleet } from '../gameLogic';
 import {
+  DEFAULT_RULES,
   RoomError,
   type Room,
+  type RoomRules,
   applyPlacement,
   applyShot,
   createRoom,
@@ -10,7 +12,11 @@ import {
   isValidRoomCode,
   joinRoom,
   normalizeRoomCode,
+  normalizeRules,
+  rematch,
   roomPhase,
+  roundOf,
+  rulesOf,
   sanitizeName,
   seatOf,
   viewRoomFor,
@@ -25,12 +31,25 @@ const hostFleet: Placement[] = randomFleet(seededRng(11));
 const guestFleet: Placement[] = randomFleet(seededRng(22));
 
 /** Room with both players in and both fleets placed. */
-function battleRoom(): Room {
-  let room = createRoom('AB2CD', 'Luffy', HOST_ID);
+function battleRoom(rules?: RoomRules): Room {
+  let room = createRoom('AB2CD', 'Luffy', HOST_ID, Date.now(), rules);
   room = joinRoom(room, 'Nami', GUEST_ID);
   room = applyPlacement(room, 'host', hostFleet);
   room = applyPlacement(room, 'guest', guestFleet);
   return room;
+}
+
+/** Every cell of a board with no ship on it. */
+function waterOn(fleet: Placement[]) {
+  const taken = new Set(fleet.flatMap((p) => placementCells(p)).map((c) => `${c.row},${c.col}`));
+  return [...Array(100).keys()]
+    .map((i) => ({ row: Math.floor(i / 10), col: i % 10 }))
+    .filter((cell) => !taken.has(`${cell.row},${cell.col}`));
+}
+
+/** A cell of the guest's board with no ship on it. */
+function waterOnGuestBoard() {
+  return waterOn(guestFleet)[0];
 }
 
 describe('room codes', () => {
@@ -103,14 +122,7 @@ describe('turns and shots', () => {
 
   it('the turn passes to the opponent after a miss', () => {
     const room = battleRoom();
-    const water = [...Array(100).keys()]
-      .map((i) => ({ row: Math.floor(i / 10), col: i % 10 }))
-      .find(
-        (cell) =>
-          !guestFleet.some((p) =>
-            placementCells(p).some((c) => c.row === cell.row && c.col === cell.col),
-          ),
-      )!;
+    const water = waterOnGuestBoard();
     const { room: next, result } = applyShot(room, 'host', water);
     expect(result.outcome).toBe('miss');
     expect(next.meta.turn).toBe('guest');
@@ -197,5 +209,143 @@ describe('redacted view', () => {
     expect(view.yourTurn).toBe(false);
     expect(view.opponent.name).toBe('Luffy');
     expect(view.you.placements).toEqual(guestFleet);
+  });
+});
+
+describe('house rules', () => {
+  it('fills in the standard rules for a room stored before they existed', () => {
+    const room = battleRoom();
+    // A room read back from Redis without the field, as the old ones are.
+    const legacy: Room = { ...room, meta: { ...room.meta, rules: undefined } };
+    expect(rulesOf(legacy)).toEqual(DEFAULT_RULES);
+    expect(viewRoomFor(legacy, HOST_ID).rules).toEqual(DEFAULT_RULES);
+  });
+
+  it('keeps only the booleans it recognises', () => {
+    expect(normalizeRules(null)).toEqual(DEFAULT_RULES);
+    expect(normalizeRules('turno extra')).toEqual(DEFAULT_RULES);
+    expect(normalizeRules({ extraTurnOnHit: 'sí' })).toEqual(DEFAULT_RULES);
+    expect(normalizeRules({ extraTurnOnHit: false, nonsense: 1 })).toEqual({
+      extraTurnOnHit: false,
+      allowAdjacent: false,
+    });
+  });
+
+  it('with the extra turn off, a hit also passes the turn', () => {
+    const room = battleRoom({ extraTurnOnHit: false, allowAdjacent: false });
+    const target = placementCells(guestFleet[0])[0];
+    const { room: next, result } = applyShot(room, 'host', target);
+    expect(result.outcome).toBe('hit');
+    expect(next.meta.turn).toBe('guest');
+  });
+
+  it('a miss passes the turn whatever the rule says', () => {
+    for (const extraTurnOnHit of [true, false]) {
+      const room = battleRoom({ extraTurnOnHit, allowAdjacent: false });
+      const { room: next } = applyShot(room, 'host', waterOnGuestBoard());
+      expect(next.meta.turn).toBe('guest');
+    }
+  });
+
+  it('accepts a fleet with ships touching only where the room allows it', () => {
+    const touching: Placement[] = [
+      { shipId: 'thousand-sunny', row: 0, col: 0, orientation: 'horizontal' },
+      { shipId: 'moby-dick', row: 1, col: 0, orientation: 'horizontal' },
+      { shipId: 'going-merry', row: 3, col: 0, orientation: 'horizontal' },
+      { shipId: 'oro-jackson', row: 5, col: 0, orientation: 'horizontal' },
+      { shipId: 'red-force', row: 7, col: 0, orientation: 'horizontal' },
+    ];
+    const strict = joinRoom(createRoom('AB2CD', 'Luffy', HOST_ID), 'Nami', GUEST_ID);
+    expect(() => applyPlacement(strict, 'host', touching)).toThrow(/adjacent/);
+
+    const loose = joinRoom(
+      createRoom('AB2CD', 'Luffy', HOST_ID, Date.now(), {
+        extraTurnOnHit: true,
+        allowAdjacent: true,
+      }),
+      'Nami',
+      GUEST_ID,
+    );
+    expect(() => applyPlacement(loose, 'host', touching)).not.toThrow();
+  });
+});
+
+describe('rematch', () => {
+  /**
+   * Plays a whole game out until the host has sunk the guest. Without the
+   * extra-turn rule the host cannot chain, so the guest spends its turns
+   * missing into open water.
+   */
+  function finishedRoom(rules?: RoomRules): Room {
+    let room = battleRoom(rules);
+    const hostWater = waterOn(hostFleet)[Symbol.iterator]();
+    for (const placement of guestFleet) {
+      for (const cell of placementCells(placement)) {
+        if (room.meta.turn === 'guest') {
+          room = applyShot(room, 'guest', hostWater.next().value!).room;
+        }
+        room = applyShot(room, 'host', cell).room;
+      }
+    }
+    return room;
+  }
+
+  it('refuses to start before the game is over', () => {
+    expect(() => rematch(battleRoom())).toThrow(/no ha terminado/);
+    const waiting = createRoom('AB2CD', 'Luffy', HOST_ID);
+    expect(() => rematch(waiting)).toThrow(/no ha terminado/);
+  });
+
+  it('clears both boards and goes back to placing', () => {
+    const next = rematch(finishedRoom());
+    expect(roomPhase(next)).toBe('placing');
+    expect(next.host.placements).toBeNull();
+    expect(next.guest?.placements).toBeNull();
+    expect(next.host.shotsReceived).toEqual([]);
+    expect(next.guest?.shotsReceived).toEqual([]);
+  });
+
+  it('keeps the players, their names and the house rules', () => {
+    const rules: RoomRules = { extraTurnOnHit: false, allowAdjacent: true };
+    const next = rematch(finishedRoom(rules));
+    expect(next.host.id).toBe(HOST_ID);
+    expect(next.guest?.id).toBe(GUEST_ID);
+    expect(next.host.name).toBe('Luffy');
+    expect(next.guest?.name).toBe('Nami');
+    expect(rulesOf(next)).toEqual(rules);
+    expect(next.meta.code).toBe('AB2CD');
+  });
+
+  it('gives the first shot to whoever lost, and counts the rounds', () => {
+    const finished = finishedRoom();
+    expect(roundOf(finished)).toBe(1);
+    const next = rematch(finished);
+    // The host sank the guest, so the guest opens the new game.
+    expect(next.meta.turn).toBe('guest');
+    expect(roundOf(next)).toBe(2);
+    expect(viewRoomFor(next, GUEST_ID).round).toBe(2);
+  });
+
+  it('counts an old room stored without the field as round one', () => {
+    const room = battleRoom();
+    const legacy: Room = { ...room, meta: { ...room.meta, round: undefined } };
+    expect(roundOf(legacy)).toBe(1);
+    expect(viewRoomFor(legacy, HOST_ID).round).toBe(1);
+  });
+
+  it('lets the room be played again from scratch', () => {
+    let room = rematch(finishedRoom());
+    room = applyPlacement(room, 'host', hostFleet);
+    room = applyPlacement(room, 'guest', guestFleet);
+    expect(roomPhase(room)).toBe('battle');
+    // The guest lost the first game, so this time they fire first.
+    expect(() => applyShot(room, 'host', { row: 0, col: 0 })).toThrow(/No es tu turno/);
+    expect(() => applyShot(room, 'guest', { row: 0, col: 0 })).not.toThrow();
+  });
+
+  it('refuses a second rematch once the new game has started', () => {
+    const next = rematch(finishedRoom());
+    // The stale client of the other player asking again must not wipe this.
+    expect(() => rematch(next)).toThrow(/no ha terminado/);
   });
 });

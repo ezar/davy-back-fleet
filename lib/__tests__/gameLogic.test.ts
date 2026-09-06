@@ -227,3 +227,64 @@ describe('end of game', () => {
     expect(untriedCells(log)).toHaveLength(BOARD_SIZE * BOARD_SIZE - 1);
   });
 });
+
+describe('the adjacency rule', () => {
+  const sunny: Placement = {
+    shipId: 'thousand-sunny',
+    row: 0,
+    col: 0,
+    orientation: 'horizontal',
+  };
+  /** Right below the Sunny, so they touch along their whole side. */
+  const alongside: Placement = {
+    shipId: 'moby-dick',
+    row: 1,
+    col: 0,
+    orientation: 'horizontal',
+  };
+  /** Only corner to corner: touching diagonally still counts as touching. */
+  const cornerToCorner: Placement = {
+    shipId: 'moby-dick',
+    row: 1,
+    col: 5,
+    orientation: 'horizontal',
+  };
+
+  it('refuses ships that touch, side or corner, by default', () => {
+    expect(canPlace([sunny], alongside)).toBe(false);
+    expect(canPlace([sunny], cornerToCorner)).toBe(false);
+  });
+
+  it('accepts them when the rule is turned on', () => {
+    expect(canPlace([sunny], alongside, true)).toBe(true);
+    expect(canPlace([sunny], cornerToCorner, true)).toBe(true);
+  });
+
+  it('never accepts an actual overlap, whatever the rule', () => {
+    const onTop: Placement = { ...alongside, row: 0, col: 1 };
+    expect(canPlace([sunny], onTop, true)).toBe(false);
+  });
+
+  it('validates a whole fleet under each rule', () => {
+    const touching: Placement[] = [
+      sunny,
+      alongside,
+      { shipId: 'going-merry', row: 3, col: 0, orientation: 'horizontal' },
+      { shipId: 'oro-jackson', row: 5, col: 0, orientation: 'horizontal' },
+      { shipId: 'red-force', row: 7, col: 0, orientation: 'horizontal' },
+    ];
+    expect(validateFleet(touching)).toEqual({
+      ok: false,
+      reason: 'adjacent',
+      shipId: 'thousand-sunny',
+    });
+    expect(validateFleet(touching, true)).toEqual({ ok: true });
+  });
+
+  it('generates valid random fleets under the loose rule too', () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const fleet = randomFleet(seededRng(seed), true);
+      expect(validateFleet(fleet, true)).toEqual({ ok: true });
+    }
+  });
+});

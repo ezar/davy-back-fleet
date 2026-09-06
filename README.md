@@ -25,7 +25,7 @@ Para publicarlo: **[DEPLOY.md](DEPLOY.md)**. `GET /api/health` dice de un vistaz
 despliegue tiene el multijugador en condiciones.
 
 ```bash
-npm test         # 62 tests de lógica, IA y salas
+npm test         # 83 tests de lógica, IA y salas
 npm run typecheck
 npm run lint
 npm run build
@@ -48,7 +48,7 @@ push a `main` y en cada pull request.
 
 ```
 app/
-├── api/room/{create,join,state,place,shoot}/route.ts
+├── api/room/{create,join,state,place,shoot,rematch}/route.ts
 └── (game)/
     ├── page.tsx              # crear sala / unirse / solitario
     ├── room/[code]/page.tsx  # partida multijugador
@@ -94,19 +94,34 @@ disparos, sin estado mutable entre turnos. Eso hace que sea trivial de testear: 
 una simulación de 200 partidas completas que comprueba que siempre termina, nunca
 repite celda y hunde los 17 objetivos.
 
-`chooseAiShot` acepta una estrategia de caza `'parity'` (damero) además de la
-aleatoria. Como el barco más pequeño ocupa dos casillas, el damero encuentra toda la
-flota con la mitad de disparos: está lista para el modo "difícil" de una fase futura,
-pero **la v1 usa la caza aleatoria** que fija la spec. Con ella la IA gana en unos 75
-disparos de media frente a los ~45 de un jugador que juegue bien: un rival asequible.
+`chooseAiShot` acepta tres estrategias de caza, medidas sobre 400 partidas con semilla:
+
+| Estrategia | Disparos | Dónde se usa |
+|---|---|---|
+| `random` | 61,2 | "Normal", el valor por defecto |
+| `parity` | 52,8 | Solo en los tests: es la explicación de por qué funciona el damero |
+| `density` | 45,0 | "Difícil" |
+
+`density` cuenta, para cada celda sin probar, de cuántas formas podrían encajar encima
+los barcos que siguen a flote, y dispara donde más quepan. Subsume el damero y además
+sabe que una esquina es mala apuesta y que una franja de agua de tres casillas ya no
+puede esconder el barco de cuatro. Los números de la tabla están cubiertos por un test:
+la pantalla de ajustes los enseña y no deben mentir.
 
 ## Reglas
 
 - Flota clásica 5-4-3-3-2: Thousand Sunny, Moby Dick, Going Merry, Oro Jackson y Red Force.
-- Los barcos **no pueden tocarse**, ni siquiera en diagonal. La spec dejaba la decisión
-  abierta; es la variante clásica española y se cambia con la constante
-  `ALLOW_ADJACENT_SHIPS` de `lib/gameLogic.ts`.
-- **Quien acierta repite turno**, como en el juego de mesa. Vale para los dos modos.
+- Los barcos **no pueden tocarse**, ni siquiera en diagonal (la variante clásica
+  española), y **quien acierta repite turno**, como en el juego de mesa. Las dos son
+  ajustables.
+- En **multijugador las reglas son de la sala**: las elige quien la crea, viajan en
+  `meta.rules` y valen para toda la partida, porque los dos jugadores tienen que estar
+  jugando al mismo juego. En **solitario** salen de ajustes. En ambos casos se congelan
+  al empezar la partida.
+- Las salas guardadas antes de que existieran las reglas se completan con las estándar
+  (`rulesOf`), así que una partida en curso no cambia de comportamiento.
+- **Revancha** desde la pantalla de resultado: misma sala, mismo código, mismas reglas,
+  y empieza quien perdió. Al rival le llega por el polling.
 - Colocación manual y aleatoria desde la v1: arrastra un barco para moverlo, tócalo sin
   arrastrar para girarlo, o pulsa "Colocación aleatoria" tantas veces como quieras.
 
@@ -124,7 +139,6 @@ repinta todo el juego.
 - **Las siluetas** son un componente SVG (`components/ShipSilhouette.tsx`) que se colorea
   solo: el número de mástiles crece con el tamaño del barco.
 
-## Fuera de alcance de la v1
+## Fuera de alcance
 
-Dificultad ajustable de la IA, power-ups por personaje, modo espectador y revancha
-automática dentro de la misma sala.
+Power-ups por personaje, modo espectador y estadísticas entre partidas.

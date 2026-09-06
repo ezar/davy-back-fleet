@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { RuleSwitches } from '@/components/RuleSwitches';
 import { ShipSilhouette } from '@/components/ShipSilhouette';
 import { FLEET } from '@/lib/fleet';
-import { ROOM_CODE_LENGTH, isValidRoomCode, normalizeRoomCode } from '@/lib/room';
+import { ROOM_CODE_LENGTH, type RoomRules, isValidRoomCode, normalizeRoomCode } from '@/lib/room';
 import {
   ApiError,
   createRoomRequest,
@@ -14,6 +15,7 @@ import {
   saveName,
   saveSession,
 } from '@/lib/roomClient';
+import { useSettingsStore } from '@/store/useSettingsStore';
 
 export default function HomePage() {
   return (
@@ -116,12 +118,17 @@ function Lobby() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
+  const [showRules, setShowRules] = useState(false);
+
+  const rules = useSettingsStore((state) => state.rules);
+  const hydrateSettings = useSettingsStore((state) => state.hydrate);
 
   useEffect(() => {
     setName(loadName());
+    hydrateSettings();
     const shared = params.get('code');
     if (shared) setCode(normalizeRoomCode(shared));
-  }, [params]);
+  }, [params, hydrateSettings]);
 
   const run = async (action: 'create' | 'join') => {
     setError(null);
@@ -130,7 +137,7 @@ function Lobby() {
       saveName(name.trim());
       const response =
         action === 'create'
-          ? await createRoomRequest(name.trim())
+          ? await createRoomRequest(name.trim(), rules)
           : await joinRoomRequest(normalizeRoomCode(code), name.trim());
       saveSession(response.code, response.playerId);
       router.push(`/room/${response.code}`);
@@ -154,6 +161,45 @@ function Lobby() {
           className="mt-1.5 h-[50px] w-full rounded-xl border border-foam/14 bg-hull/72 px-4 text-base font-medium outline-none transition focus:border-gold"
         />
       </label>
+
+      {/* Folded away by default: the rules only matter to whoever creates the
+          room, and the standard ones are what almost everyone plays. */}
+      <div className="rounded-xl border border-foam/12 bg-hull/40">
+        <button
+          type="button"
+          onClick={() => setShowRules((value) => !value)}
+          aria-expanded={showRules}
+          className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left"
+        >
+          <span className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-foam/45">
+            Reglas de la sala
+          </span>
+          <span className="flex items-center gap-1.5 text-[0.68rem] font-medium text-foam/50">
+            {rulesSummary(rules)}
+            <svg
+              viewBox="0 0 24 24"
+              className={`h-3.5 w-3.5 transition-transform ${showRules ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </span>
+        </button>
+        {showRules && (
+          <div className="border-t border-foam/8 px-3.5 py-3">
+            <RuleSwitches />
+            <p className="mt-2.5 text-[0.65rem] leading-relaxed text-foam/35">
+              Las decide quien crea la sala y valen para toda la partida. Quien se une juega con
+              ellas.
+            </p>
+          </div>
+        )}
+      </div>
 
       <button
         type="button"
@@ -218,4 +264,13 @@ function Lobby() {
       </Link>
     </div>
   );
+}
+
+/** One line saying how far the room strays from the standard rules. */
+function rulesSummary(rules: RoomRules): string {
+  const changes = [
+    rules.extraTurnOnHit ? null : 'sin turno extra',
+    rules.allowAdjacent ? 'barcos pegados' : null,
+  ].filter(Boolean);
+  return changes.length === 0 ? 'Estándar' : changes.join(' · ');
 }

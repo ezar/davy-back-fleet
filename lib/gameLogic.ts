@@ -14,9 +14,10 @@ import type {
 export const BOARD_SIZE = 10;
 
 /**
- * Placement rule: `false` means ships may not touch, not even diagonally
- * (the classic Spanish variant). Setting it to `true` allows packed fleets;
- * the rest of the logic and the AI work unchanged either way.
+ * Default placement rule: `false` means ships may not touch, not even
+ * diagonally (the classic Spanish variant). Every function below takes it as
+ * a parameter, so a room or a solo game can play the other way; the rest of
+ * the logic and the AI work unchanged either way.
  */
 export const ALLOW_ADJACENT_SHIPS = false;
 
@@ -94,9 +95,9 @@ function isPlacementInsideBoard(placement: Placement): boolean {
 }
 
 /** Cells a ship denies to the others (its own, plus its halo when adjacency is banned). */
-function blockedCells(placement: Placement): Cell[] {
+function blockedCells(placement: Placement, allowAdjacent: boolean): Cell[] {
   const own = placementCells(placement);
-  if (ALLOW_ADJACENT_SHIPS) return own;
+  if (allowAdjacent) return own;
   const blocked = new Map<string, Cell>();
   for (const cell of own) {
     for (let dr = -1; dr <= 1; dr++) {
@@ -113,12 +114,16 @@ function blockedCells(placement: Placement): Cell[] {
  * Does `candidate` fit alongside the ships already placed?
  * Checks bounds, overlap and (per the rule) adjacency.
  */
-export function canPlace(existing: readonly Placement[], candidate: Placement): boolean {
+export function canPlace(
+  existing: readonly Placement[],
+  candidate: Placement,
+  allowAdjacent: boolean = ALLOW_ADJACENT_SHIPS,
+): boolean {
   if (!isPlacementInsideBoard(candidate)) return false;
   const taken = new Set<string>();
   for (const placement of existing) {
     if (placement.shipId === candidate.shipId) continue; // reubicar el mismo barco
-    for (const cell of blockedCells(placement)) taken.add(cellKey(cell));
+    for (const cell of blockedCells(placement, allowAdjacent)) taken.add(cellKey(cell));
   }
   return placementCells(candidate).every((cell) => !taken.has(cellKey(cell)));
 }
@@ -127,7 +132,10 @@ export function canPlace(existing: readonly Placement[], candidate: Placement): 
  * Validates a whole fleet: all 5 ships, no duplicates, inside the board,
  * no overlaps, and respecting the adjacency rule.
  */
-export function validateFleet(placements: readonly Placement[]): FleetValidation {
+export function validateFleet(
+  placements: readonly Placement[],
+  allowAdjacent: boolean = ALLOW_ADJACENT_SHIPS,
+): FleetValidation {
   if (placements.length !== FLEET.length) {
     return { ok: false, reason: 'wrong-ship-count' };
   }
@@ -157,9 +165,9 @@ export function validateFleet(placements: readonly Placement[]): FleetValidation
     }
   }
 
-  if (!ALLOW_ADJACENT_SHIPS) {
+  if (!allowAdjacent) {
     for (const placement of placements) {
-      for (const cell of blockedCells(placement)) {
+      for (const cell of blockedCells(placement, allowAdjacent)) {
         const owner = occupied.get(cellKey(cell));
         if (owner && owner !== placement.shipId) {
           return { ok: false, reason: 'adjacent', shipId: placement.shipId };
@@ -192,14 +200,17 @@ function candidatePlacements(shipId: ShipId, size: number): Placement[] {
  * legal positions left; if a ship runs out of room, it restarts the whole
  * fleet and tries again.
  */
-export function randomFleet(rng: Rng = defaultRng): Placement[] {
+export function randomFleet(
+  rng: Rng = defaultRng,
+  allowAdjacent: boolean = ALLOW_ADJACENT_SHIPS,
+): Placement[] {
   const MAX_ATTEMPTS = 100;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const placements: Placement[] = [];
     let failed = false;
     for (const ship of FLEET) {
       const legal = candidatePlacements(ship.id, ship.size).filter((candidate) =>
-        canPlace(placements, candidate),
+        canPlace(placements, candidate, allowAdjacent),
       );
       if (legal.length === 0) {
         failed = true;
@@ -218,11 +229,12 @@ export function randomPlacementFor(
   shipId: ShipId,
   others: readonly Placement[],
   rng: Rng = defaultRng,
+  allowAdjacent: boolean = ALLOW_ADJACENT_SHIPS,
 ): Placement | null {
   const ship = getShip(shipId);
   if (!ship) return null;
   const legal = candidatePlacements(shipId, ship.size).filter((candidate) =>
-    canPlace(others, candidate),
+    canPlace(others, candidate, allowAdjacent),
   );
   return legal.length > 0 ? pick(rng, legal) : null;
 }

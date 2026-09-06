@@ -16,8 +16,11 @@ interface ResultScreenProps {
   yourShots: ShotLog;
   /** Shots taken: how many of your ships are still afloat comes from here. */
   incomingShots: ShotLog;
-  /** When given, an immediate rematch is offered (solo mode). */
+  /** When given, another game is offered right there. */
   onRestart?: () => void;
+  /** Wording of that button: a room asks for a rematch, solo just plays again. */
+  restartLabel?: string;
+  restartDisabled?: boolean;
 }
 
 export function ResultScreen({
@@ -26,6 +29,8 @@ export function ResultScreen({
   yourShots,
   incomingShots,
   onRestart,
+  restartLabel = 'OTRA PARTIDA',
+  restartDisabled = false,
 }: ResultScreenProps) {
   const won = outcome === 'won';
   const play = useAudioStore((state) => state.play);
@@ -117,9 +122,10 @@ export function ResultScreen({
           <button
             type="button"
             onClick={onRestart}
-            className="h-[54px] rounded-xl bg-gold font-display text-base font-black tracking-[0.07em] text-abyss shadow-plank transition hover:brightness-110"
+            disabled={restartDisabled}
+            className="h-[54px] rounded-xl bg-gold font-display text-base font-black tracking-[0.07em] text-abyss shadow-plank transition hover:brightness-110 disabled:opacity-50"
           >
-            OTRA PARTIDA
+            {restartLabel}
           </button>
         )}
         <Link

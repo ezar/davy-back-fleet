@@ -2,17 +2,29 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import { RuleSwitches, Switch } from './RuleSwitches';
+import { notificationPermission, requestNotificationPermission } from '@/lib/notifications';
 import { useAudioStore } from '@/store/useAudioStore';
 import { type BoardView, useSettingsStore } from '@/store/useSettingsStore';
 
-/** In-game settings: board view and sound. */
-export function SettingsMenu() {
+/** In-game settings: board view, AI difficulty and sound. */
+export function SettingsMenu({
+  /** Difficulty only exists against the AI, so it is hidden in a room. */
+  solo = false,
+}: {
+  solo?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
 
   const view = useSettingsStore((state) => state.view);
   const setView = useSettingsStore((state) => state.setView);
+  const aiStrategy = useSettingsStore((state) => state.aiStrategy);
+  const setAiStrategy = useSettingsStore((state) => state.setAiStrategy);
   const hydrateView = useSettingsStore((state) => state.hydrate);
+  const turnAlerts = useSettingsStore((state) => state.turnAlerts);
+  const setTurnAlerts = useSettingsStore((state) => state.setTurnAlerts);
+  const [alertNote, setAlertNote] = useState<string | null>(null);
 
   const muted = useAudioStore((state) => state.muted);
   const toggleMuted = useAudioStore((state) => state.toggleMuted);
@@ -24,6 +36,35 @@ export function SettingsMenu() {
     hydrateView();
     hydrateAudio();
   }, [hydrateView, hydrateAudio]);
+
+  /**
+   * Turning it on asks for permission right here, inside the tap: browsers
+   * refuse the request from anywhere else. If it is refused, the switch goes
+   * back to off rather than pretending it worked.
+   */
+  const toggleAlerts = async (enabled: boolean) => {
+    setAlertNote(null);
+    if (!enabled) {
+      setTurnAlerts(false);
+      return;
+    }
+    const permission = await requestNotificationPermission();
+    if (permission === 'granted') {
+      setTurnAlerts(true);
+      return;
+    }
+    setTurnAlerts(false);
+    setAlertNote(
+      permission === 'unsupported'
+        ? 'Este navegador no admite notificaciones.'
+        : 'Has bloqueado las notificaciones para esta página. Puedes permitirlas desde los ajustes del navegador.',
+    );
+  };
+
+  // Reflects a permission revoked from the browser's own settings.
+  useEffect(() => {
+    if (turnAlerts && notificationPermission() !== 'granted') setTurnAlerts(false);
+  }, [turnAlerts, setTurnAlerts]);
 
   // Close on an outside tap.
   useEffect(() => {
@@ -83,29 +124,84 @@ export function SettingsMenu() {
               </p>
             </fieldset>
 
+            {solo && (
+              // The rule goes on the wrapper, not the fieldset: a <legend>
+              // sits on the fieldset's own border and cuts it in half.
+              <div className="mb-3 border-t border-foam/8 pt-2.5">
+                <fieldset>
+                  <legend className="mb-1.5 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-foam/45">
+                    Dificultad
+                  </legend>
+                  <div className="flex gap-1.5">
+                    <Choice
+                      active={aiStrategy === 'random'}
+                      label="Normal"
+                      onSelect={() => setAiStrategy('random')}
+                    />
+                    <Choice
+                      active={aiStrategy === 'density'}
+                      label="Difícil"
+                      onSelect={() => setAiStrategy('density')}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[0.65rem] leading-relaxed text-foam/40">
+                    {aiStrategy === 'random'
+                      ? 'Dispara al azar mientras busca. Te hunde la flota en unos 61 disparos.'
+                      : 'Apunta donde más quepan los barcos que te quedan, y descarta el agua que ya conoce. Unos 45 disparos.'}
+                  </p>
+                  <p className="mt-1 text-[0.65rem] leading-relaxed text-foam/30">
+                    Se aplica a la siguiente partida.
+                  </p>
+                </fieldset>
+              </div>
+            )}
+
+            {solo && (
+              <div className="mb-3 border-t border-foam/8 pt-2.5">
+                <p className="mb-2 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-foam/45">
+                  Reglas
+                </p>
+                <RuleSwitches />
+                <p className="mt-2 text-[0.65rem] leading-relaxed text-foam/30">
+                  Se aplican a la siguiente partida.
+                </p>
+              </div>
+            )}
+
+            {!solo && (
+              <div className="mb-3 border-t border-foam/8 pt-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold text-foam/75">Avisarme del turno</span>
+                    <span className="block text-[0.65rem] leading-relaxed text-foam/40">
+                      Notificación del navegador cuando tu rival mueva.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={turnAlerts}
+                    label="Avisarme del turno"
+                    onChange={(enabled) => void toggleAlerts(enabled)}
+                  />
+                </div>
+                {alertNote && (
+                  <p className="mt-1.5 text-[0.65rem] leading-relaxed text-ember/80">{alertNote}</p>
+                )}
+                <p className="mt-1.5 text-[0.65rem] leading-relaxed text-foam/30">
+                  El título de la pestaña avisa igualmente, sin pedir permiso.
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center justify-between border-t border-foam/8 pt-2.5">
               <span className="text-xs font-bold text-foam/70">Sonido</span>
-              <button
-                type="button"
-                onClick={() => {
+              <Switch
+                checked={!muted}
+                label="Sonido"
+                onChange={() => {
                   unlock();
                   toggleMuted();
                 }}
-                role="switch"
-                aria-checked={!muted}
-                className={[
-                  'relative h-6 w-11 rounded-full transition',
-                  muted ? 'bg-foam/15' : 'bg-gold',
-                ].join(' ')}
-              >
-                <span
-                  aria-hidden
-                  className={[
-                    'absolute top-1 h-4 w-4 rounded-full bg-abyss transition-all',
-                    muted ? 'left-1' : 'left-6',
-                  ].join(' ')}
-                />
-              </button>
+              />
             </div>
           </motion.div>
         )}
@@ -125,11 +221,23 @@ function ViewOption({
   label: string;
   onSelect: (view: BoardView) => void;
 }) {
-  const active = current === value;
+  return <Choice active={current === value} label={label} onSelect={() => onSelect(value)} />;
+}
+
+/** One of a row of mutually exclusive chips. */
+function Choice({
+  active,
+  label,
+  onSelect,
+}: {
+  active: boolean;
+  label: string;
+  onSelect: () => void;
+}) {
   return (
     <button
       type="button"
-      onClick={() => onSelect(value)}
+      onClick={onSelect}
       aria-pressed={active}
       className={[
         'flex-1 rounded-lg border px-2 py-2 text-xs font-bold transition',

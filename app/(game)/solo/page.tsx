@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CombatView, GameHeader } from '@/components/CombatView';
 import { PlacementEditor } from '@/components/PlacementEditor';
 import { ResultScreen } from '@/components/ResultScreen';
@@ -8,14 +8,19 @@ import { SunkBanner } from '@/components/SunkBanner';
 import { FLEET } from '@/lib/fleet';
 import { useAudioStore } from '@/store/useAudioStore';
 import { useGameStore } from '@/store/useGameStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 
 const OPPONENT = 'la IA';
 
 export default function SoloPage() {
   const unlockAudio = useAudioStore((state) => state.unlock);
+  const aiStrategy = useSettingsStore((state) => state.aiStrategy);
+  const settingsRules = useSettingsStore((state) => state.rules);
+  const hydrateSettings = useSettingsStore((state) => state.hydrate);
   const {
     phase,
     playerFleet,
+    rules,
     shotsAtAi,
     shotsAtPlayer,
     turn,
@@ -29,10 +34,18 @@ export default function SoloPage() {
     shoot,
   } = useGameStore();
 
+  // The stored difficulty only exists on the client, and the first game must
+  // not start before it has been read: otherwise it always begins on normal.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    hydrateSettings();
+    setReady(true);
+  }, [hydrateSettings]);
+
   // The fleet is rolled on the client: doing it on the server would break hydration.
   useEffect(() => {
-    if (phase === 'idle') newGame();
-  }, [phase, newGame]);
+    if (ready && phase === 'idle') newGame(aiStrategy, settingsRules);
+  }, [ready, phase, newGame, aiStrategy, settingsRules]);
 
   if (phase === 'idle') {
     return <main className="p-6 text-center text-foam/60">Preparando los mares…</main>;
@@ -43,10 +56,11 @@ export default function SoloPage() {
   return (
     <main className="mx-auto w-full max-w-md space-y-5 px-4 py-5">
       <GameHeader
+        solo
         right={
           <button
             type="button"
-            onClick={newGame}
+            onClick={() => newGame(aiStrategy, settingsRules)}
             className="text-xs font-semibold text-foam/50 hover:text-foam"
           >
             Nueva partida
@@ -61,10 +75,17 @@ export default function SoloPage() {
               Coloca tu flota
             </h1>
             <p className="mt-1 text-xs text-foam/50">
-              Contra la IA. Quien acierta repite turno, así que el primer impacto vale doble.
+              Contra la IA.{' '}
+              {rules.extraTurnOnHit
+                ? 'Quien acierta repite turno, así que el primer impacto vale doble.'
+                : 'El turno alterna en cada disparo.'}
             </p>
           </div>
-          <PlacementEditor placements={playerFleet} onChange={setPlayerFleet} />
+          <PlacementEditor
+            placements={playerFleet}
+            onChange={setPlayerFleet}
+            allowAdjacent={rules.allowAdjacent}
+          />
           <button
             type="button"
             onClick={() => {
@@ -98,7 +119,7 @@ export default function SoloPage() {
           opponentName={OPPONENT}
           yourShots={shotsAtAi}
           incomingShots={shotsAtPlayer}
-          onRestart={newGame}
+          onRestart={() => newGame(aiStrategy, settingsRules)}
         />
       )}
 

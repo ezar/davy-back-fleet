@@ -7,21 +7,37 @@ import { PlacementEditor } from '@/components/PlacementEditor';
 import { ResultScreen } from '@/components/ResultScreen';
 import { SunkBanner } from '@/components/SunkBanner';
 import { useRoom } from '@/hooks/useRoom';
+import { useTurnAlert } from '@/hooks/useTurnAlert';
 import { FLEET } from '@/lib/fleet';
 import { randomFleet } from '@/lib/gameLogic';
 import { normalizeRoomCode } from '@/lib/room';
 import { useAudioStore } from '@/store/useAudioStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import type { Placement } from '@/lib/types';
 
 export default function RoomPage({ params }: { params: { code: string } }) {
   const code = normalizeRoomCode(params.code);
-  const { view, error, sunkByYou, sunkByOpponent, placeFleet, shoot, busy } = useRoom(code);
+  const { view, error, sunkByYou, sunkByOpponent, placeFleet, shoot, rematch, busy } =
+    useRoom(code);
   const [draft, setDraft] = useState<Placement[]>([]);
   const unlockAudio = useAudioStore((state) => state.unlock);
+  const turnAlerts = useSettingsStore((state) => state.turnAlerts);
+  const hydrateSettings = useSettingsStore((state) => state.hydrate);
 
-  // A starting fleet is rolled on the client so hydration is not broken.
   useEffect(() => {
-    if (draft.length === 0 && view && !view.you.ready) setDraft(randomFleet());
+    hydrateSettings();
+  }, [hydrateSettings]);
+
+  // A remote game runs over minutes: without this you have to keep coming
+  // back to the tab to find out whether the other player has moved.
+  useTurnAlert(view, turnAlerts);
+
+  // A starting fleet is rolled on the client so hydration is not broken, and
+  // under the room's rules: the host may have allowed touching ships.
+  useEffect(() => {
+    if (draft.length === 0 && view && !view.you.ready) {
+      setDraft(randomFleet(undefined, view.rules.allowAdjacent));
+    }
     // Only when entering the placement phase: after that the player is in charge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.you.ready]);
@@ -52,6 +68,12 @@ export default function RoomPage({ params }: { params: { code: string } }) {
 
       {view.phase === 'waiting' && <WaitingForRival code={code} />}
 
+      {view.round > 1 && view.phase !== 'finished' && (
+        <p className="text-center text-[0.62rem] font-bold uppercase tracking-[0.2em] text-gold/70">
+          Revancha · partida {view.round}
+        </p>
+      )}
+
       {(view.phase === 'waiting' || view.phase === 'placing') && !view.you.ready && (
         <section className="space-y-4">
           <div>
@@ -59,10 +81,19 @@ export default function RoomPage({ params }: { params: { code: string } }) {
               Coloca tu flota
             </h1>
             <p className="mt-1 text-xs text-foam/50">
-              Solo tú ves este tablero. Quien acierta repite turno.
+              Solo tú ves este tablero.{' '}
+              {view.rules.extraTurnOnHit
+                ? 'Quien acierta repite turno.'
+                : 'El turno alterna en cada disparo.'}
+              {view.rules.allowAdjacent && ' Los barcos pueden tocarse.'}
             </p>
           </div>
-          <PlacementEditor placements={draft} onChange={setDraft} disabled={busy} />
+          <PlacementEditor
+            placements={draft}
+            onChange={setDraft}
+            disabled={busy}
+            allowAdjacent={view.rules.allowAdjacent}
+          />
           <button
             type="button"
             onClick={() => {
@@ -102,6 +133,11 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           opponentName={opponentName}
           yourShots={view.opponent.outgoingShots}
           incomingShots={view.you.incomingShots}
+          // Same room, same code: the other player is dropped back into the
+          // placement screen by their own polling.
+          onRestart={() => void rematch()}
+          restartLabel="REVANCHA"
+          restartDisabled={busy}
         />
       )}
 

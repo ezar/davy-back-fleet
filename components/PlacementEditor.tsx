@@ -16,6 +16,8 @@ interface PlacementEditorProps {
   placements: Placement[];
   onChange: (placements: Placement[]) => void;
   disabled?: boolean;
+  /** House rule: may the ships touch? Comes from the room, or from settings in solo. */
+  allowAdjacent?: boolean;
 }
 
 /** The ship the player is holding, dragging or waiting to drop. */
@@ -56,7 +58,12 @@ function cellFromPointer(x: number, y: number): Cell | null {
   return { row, col };
 }
 
-export function PlacementEditor({ placements, onChange, disabled = false }: PlacementEditorProps) {
+export function PlacementEditor({
+  placements,
+  onChange,
+  disabled = false,
+  allowAdjacent = false,
+}: PlacementEditorProps) {
   const [held, setHeld] = useState<Held | null>(null);
   const [hover, setHover] = useState<Cell | null>(null);
 
@@ -64,7 +71,9 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
 
   /** Preview of the held ship over the cell being pointed at. */
   const previewPlacement = held && hover ? anchorFor(hover, held) : null;
-  const previewValid = previewPlacement ? canPlace(placements, previewPlacement) : true;
+  const previewValid = previewPlacement
+    ? canPlace(placements, previewPlacement, allowAdjacent)
+    : true;
 
   const drop = useCallback(
     (cell: Cell | null) => {
@@ -86,14 +95,14 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
           orientation: held.orientation === 'horizontal' ? 'vertical' : 'horizontal',
         };
         const options = [anchorFor(cell, flipped), anchorFor(cell, { ...flipped, grabOffset: 0 })];
-        settle(options.find((option) => canPlace(rest, option)) ?? null);
+        settle(options.find((option) => canPlace(rest, option, allowAdjacent)) ?? null);
         return;
       }
 
       const target = cell ? anchorFor(cell, held) : null;
-      settle(target && canPlace(rest, target) ? target : null);
+      settle(target && canPlace(rest, target, allowAdjacent) ? target : null);
     },
-    [held, onChange, placements],
+    [held, onChange, placements, allowAdjacent],
   );
 
   const handlePointerDown = (event: React.PointerEvent) => {
@@ -168,7 +177,7 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => onChange(randomFleet())}
+          onClick={() => onChange(randomFleet(undefined, allowAdjacent))}
           disabled={disabled}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gold px-3 py-3 text-sm font-bold text-abyss shadow-plank transition hover:brightness-110 disabled:opacity-40"
         >
@@ -221,7 +230,7 @@ export function PlacementEditor({ placements, onChange, disabled = false }: Plac
           })
         }
         onAutoPlace={(shipId) => {
-          const placement = randomPlacementFor(shipId, placements);
+          const placement = randomPlacementFor(shipId, placements, undefined, allowAdjacent);
           if (placement) onChange([...placements, placement]);
         }}
       />
