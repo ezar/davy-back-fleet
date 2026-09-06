@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 96" role="img" aria-label="moby-dick">
+  <title>moby-dick</title>
+  <path d="M18 72V22" stroke="#e8f2f8" stroke-width="3" stroke-linecap="round"/><path d="M18 26q22 14 0 30z" fill="#e8f2f8" opacity="0.85"/><path d="M18 30q-16 10 0 22z" fill="#e8f2f8" opacity="0.55"/><path d="M43 72V22" stroke="#e8f2f8" stroke-width="3" stroke-linecap="round"/><path d="M43 26q22 14 0 30z" fill="#e8f2f8" opacity="0.85"/><path d="M43 30q-16 10 0 22z" fill="#e8f2f8" opacity="0.55"/><path d="M68 72V22" stroke="#e8f2f8" stroke-width="3" stroke-linecap="round"/><path d="M68 26q22 14 0 30z" fill="#e8f2f8" opacity="0.85"/><path d="M68 30q-16 10 0 22z" fill="#e8f2f8" opacity="0.55"/>
+  <path d="M74 34c6-10 18-10 24 0" stroke="#e8f2f8" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="92" cy="26" r="3" fill="#e8f2f8"/>
+  <path d="M8 74h100l-12 16H20z" fill="#e8f2f8"/>
+  <path d="M8 74h100" stroke="#e8f2f8" stroke-width="4" stroke-linecap="round"/>
+</svg>

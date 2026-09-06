@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 96" role="img" aria-label="oro-jackson">
+  <title>oro-jackson</title>
+  <path d="M18 72V22" stroke="#d8b45a" stroke-width="3" stroke-linecap="round"/><path d="M18 26q22 14 0 30z" fill="#d8b45a" opacity="0.85"/><path d="M18 30q-16 10 0 22z" fill="#d8b45a" opacity="0.55"/><path d="M51 72V22" stroke="#d8b45a" stroke-width="3" stroke-linecap="round"/><path d="M51 26q22 14 0 30z" fill="#d8b45a" opacity="0.85"/><path d="M51 30q-16 10 0 22z" fill="#d8b45a" opacity="0.55"/>
+  <path d="M76 34l4-14 6 9 6-9 4 14z" fill="#d8b45a"/>
+  <path d="M8 74h100l-12 16H20z" fill="#d8b45a"/>
+  <path d="M8 74h100" stroke="#d8b45a" stroke-width="4" stroke-linecap="round"/>
+</svg>

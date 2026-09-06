@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 96" role="img" aria-label="thousand-sunny">
+  <title>thousand-sunny</title>
+  <path d="M18 72V22" stroke="#f2b134" stroke-width="3" stroke-linecap="round"/><path d="M18 26q22 14 0 30z" fill="#f2b134" opacity="0.85"/><path d="M18 30q-16 10 0 22z" fill="#f2b134" opacity="0.55"/><path d="M43 72V22" stroke="#f2b134" stroke-width="3" stroke-linecap="round"/><path d="M43 26q22 14 0 30z" fill="#f2b134" opacity="0.85"/><path d="M43 30q-16 10 0 22z" fill="#f2b134" opacity="0.55"/><path d="M68 72V22" stroke="#f2b134" stroke-width="3" stroke-linecap="round"/><path d="M68 26q22 14 0 30z" fill="#f2b134" opacity="0.85"/><path d="M68 30q-16 10 0 22z" fill="#f2b134" opacity="0.55"/>
+  <circle cx="86" cy="30" r="9" fill="#f2b134"/><path d="M86 15v-7M86 52v7M71 30h-7M101 30h7" stroke="#f2b134" stroke-width="3" stroke-linecap="round"/>
+  <path d="M8 74h100l-12 16H20z" fill="#f2b134"/>
+  <path d="M8 74h100" stroke="#f2b134" stroke-width="4" stroke-linecap="round"/>
+</svg>

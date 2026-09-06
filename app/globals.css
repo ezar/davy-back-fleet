@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-abyss text-foam font-body antialiased;
+  background-image:
+    radial-gradient(ellipse at top, rgba(27, 79, 114, 0.45), transparent 60%),
+    radial-gradient(ellipse at bottom, rgba(140, 31, 31, 0.18), transparent 55%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+/* El tablero nunca debe provocar scroll horizontal en el móvil. */
+.board-grid {
+  display: grid;
+  grid-template-columns: 1.25rem repeat(10, minmax(0, 1fr));
+  gap: 2px;
+  touch-action: manipulation;
+}
+
+.board-cell {
+  @apply relative aspect-square rounded-[3px] transition-colors duration-150;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

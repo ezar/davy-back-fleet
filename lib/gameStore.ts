@@ -97,11 +97,22 @@ class RedisRoomStore implements RoomStore {
 }
 
 /**
+ * En desarrollo, Next instancia los módulos por ruta, así que un `Map` de
+ * módulo se duplicaría y cada endpoint vería salas distintas. Colgarlo de
+ * `globalThis` mantiene una sola copia para todas las rutas.
+ */
+function memoryRooms(): Map<string, Room> {
+  const globals = globalThis as typeof globalThis & { __dbfRooms?: Map<string, Room> };
+  globals.__dbfRooms ??= new Map<string, Room>();
+  return globals.__dbfRooms;
+}
+
+/**
  * Respaldo en memoria para desarrollo local sin credenciales de Upstash.
  * No sobrevive entre invocaciones serverless: nunca debe usarse en producción.
  */
 class MemoryRoomStore implements RoomStore {
-  private readonly rooms = new Map<string, Room>();
+  private readonly rooms = memoryRooms();
 
   async create(room: Room): Promise<boolean> {
     if (this.rooms.has(room.meta.code)) return false;
@@ -158,11 +169,6 @@ export function getRoomStore(): RoomStore {
     store = new MemoryRoomStore();
   }
   return store;
-}
-
-/** ¿Hay multijugador disponible en este despliegue? */
-export function isMultiplayerConfigured(): boolean {
-  return readCredentials() !== null || process.env.NODE_ENV !== 'production';
 }
 
 /** Identificador secreto de jugador. */
