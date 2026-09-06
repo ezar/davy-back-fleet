@@ -15,7 +15,8 @@ import type { Placement } from '@/lib/types';
 
 export default function RoomPage({ params }: { params: { code: string } }) {
   const code = normalizeRoomCode(params.code);
-  const { view, error, sunkByYou, sunkByOpponent, placeFleet, shoot, busy } = useRoom(code);
+  const { view, error, sunkByYou, sunkByOpponent, placeFleet, shoot, rematch, busy } =
+    useRoom(code);
   const [draft, setDraft] = useState<Placement[]>([]);
   const unlockAudio = useAudioStore((state) => state.unlock);
 
@@ -54,6 +55,12 @@ export default function RoomPage({ params }: { params: { code: string } }) {
       <GameHeader right={<RoomCode code={code} />} />
 
       {view.phase === 'waiting' && <WaitingForRival code={code} />}
+
+      {view.round > 1 && view.phase !== 'finished' && (
+        <p className="text-center text-[0.62rem] font-bold uppercase tracking-[0.2em] text-gold/70">
+          Revancha · partida {view.round}
+        </p>
+      )}
 
       {(view.phase === 'waiting' || view.phase === 'placing') && !view.you.ready && (
         <section className="space-y-4">
@@ -114,6 +121,11 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           opponentName={opponentName}
           yourShots={view.opponent.outgoingShots}
           incomingShots={view.you.incomingShots}
+          // Same room, same code: the other player is dropped back into the
+          // placement screen by their own polling.
+          onRestart={() => void rematch()}
+          restartLabel="REVANCHA"
+          restartDisabled={busy}
         />
       )}
 

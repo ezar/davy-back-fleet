@@ -13,7 +13,9 @@ import {
   joinRoom,
   normalizeRoomCode,
   normalizeRules,
+  rematch,
   roomPhase,
+  roundOf,
   rulesOf,
   sanitizeName,
   seatOf,
@@ -37,16 +39,17 @@ function battleRoom(rules?: RoomRules): Room {
   return room;
 }
 
-/** A cell of the guest's board with no ship on it. */
-function waterOnGuestBoard() {
+/** Every cell of a board with no ship on it. */
+function waterOn(fleet: Placement[]) {
+  const taken = new Set(fleet.flatMap((p) => placementCells(p)).map((c) => `${c.row},${c.col}`));
   return [...Array(100).keys()]
     .map((i) => ({ row: Math.floor(i / 10), col: i % 10 }))
-    .find(
-      (cell) =>
-        !guestFleet.some((p) =>
-          placementCells(p).some((c) => c.row === cell.row && c.col === cell.col),
-        ),
-    )!;
+    .filter((cell) => !taken.has(`${cell.row},${cell.col}`));
+}
+
+/** A cell of the guest's board with no ship on it. */
+function waterOnGuestBoard() {
+  return waterOn(guestFleet)[0];
 }
 
 describe('room codes', () => {
@@ -264,5 +267,85 @@ describe('house rules', () => {
       GUEST_ID,
     );
     expect(() => applyPlacement(loose, 'host', touching)).not.toThrow();
+  });
+});
+
+describe('rematch', () => {
+  /**
+   * Plays a whole game out until the host has sunk the guest. Without the
+   * extra-turn rule the host cannot chain, so the guest spends its turns
+   * missing into open water.
+   */
+  function finishedRoom(rules?: RoomRules): Room {
+    let room = battleRoom(rules);
+    const hostWater = waterOn(hostFleet)[Symbol.iterator]();
+    for (const placement of guestFleet) {
+      for (const cell of placementCells(placement)) {
+        if (room.meta.turn === 'guest') {
+          room = applyShot(room, 'guest', hostWater.next().value!).room;
+        }
+        room = applyShot(room, 'host', cell).room;
+      }
+    }
+    return room;
+  }
+
+  it('refuses to start before the game is over', () => {
+    expect(() => rematch(battleRoom())).toThrow(/no ha terminado/);
+    const waiting = createRoom('AB2CD', 'Luffy', HOST_ID);
+    expect(() => rematch(waiting)).toThrow(/no ha terminado/);
+  });
+
+  it('clears both boards and goes back to placing', () => {
+    const next = rematch(finishedRoom());
+    expect(roomPhase(next)).toBe('placing');
+    expect(next.host.placements).toBeNull();
+    expect(next.guest?.placements).toBeNull();
+    expect(next.host.shotsReceived).toEqual([]);
+    expect(next.guest?.shotsReceived).toEqual([]);
+  });
+
+  it('keeps the players, their names and the house rules', () => {
+    const rules: RoomRules = { extraTurnOnHit: false, allowAdjacent: true };
+    const next = rematch(finishedRoom(rules));
+    expect(next.host.id).toBe(HOST_ID);
+    expect(next.guest?.id).toBe(GUEST_ID);
+    expect(next.host.name).toBe('Luffy');
+    expect(next.guest?.name).toBe('Nami');
+    expect(rulesOf(next)).toEqual(rules);
+    expect(next.meta.code).toBe('AB2CD');
+  });
+
+  it('gives the first shot to whoever lost, and counts the rounds', () => {
+    const finished = finishedRoom();
+    expect(roundOf(finished)).toBe(1);
+    const next = rematch(finished);
+    // The host sank the guest, so the guest opens the new game.
+    expect(next.meta.turn).toBe('guest');
+    expect(roundOf(next)).toBe(2);
+    expect(viewRoomFor(next, GUEST_ID).round).toBe(2);
+  });
+
+  it('counts an old room stored without the field as round one', () => {
+    const room = battleRoom();
+    const legacy: Room = { ...room, meta: { ...room.meta, round: undefined } };
+    expect(roundOf(legacy)).toBe(1);
+    expect(viewRoomFor(legacy, HOST_ID).round).toBe(1);
+  });
+
+  it('lets the room be played again from scratch', () => {
+    let room = rematch(finishedRoom());
+    room = applyPlacement(room, 'host', hostFleet);
+    room = applyPlacement(room, 'guest', guestFleet);
+    expect(roomPhase(room)).toBe('battle');
+    // The guest lost the first game, so this time they fire first.
+    expect(() => applyShot(room, 'host', { row: 0, col: 0 })).toThrow(/No es tu turno/);
+    expect(() => applyShot(room, 'guest', { row: 0, col: 0 })).not.toThrow();
+  });
+
+  it('refuses a second rematch once the new game has started', () => {
+    const next = rematch(finishedRoom());
+    // The stale client of the other player asking again must not wipe this.
+    expect(() => rematch(next)).toThrow(/no ha terminado/);
   });
 });

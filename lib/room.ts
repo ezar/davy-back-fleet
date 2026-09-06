@@ -70,6 +70,8 @@ export interface RoomMeta {
   turn: Seat;
   /** Chosen when the room is created. Optional: rooms stored before it existed. */
   rules?: RoomRules;
+  /** Games played in this room. Optional: rooms stored before rematches existed. */
+  round?: number;
 }
 
 export interface Room {
@@ -83,6 +85,12 @@ export function rulesOf(room: Room): RoomRules {
   return normalizeRules(room.meta.rules);
 }
 
+/** Which game of the room this is. The first one is 1. */
+export function roundOf(room: Room): number {
+  const round = room.meta.round;
+  return typeof round === 'number' && round >= 1 ? Math.floor(round) : 1;
+}
+
 /** The room as one player sees it, already redacted. */
 export interface RoomView {
   code: string;
@@ -90,6 +98,8 @@ export interface RoomView {
   seat: Seat;
   /** The house rules, so both clients place and read the board the same way. */
   rules: RoomRules;
+  /** Bumped by a rematch, so a client can tell a new game from the old one. */
+  round: number;
   updatedAt: number;
   yourTurn: boolean;
   you: {
@@ -212,7 +222,7 @@ export function createRoom(
   rules: RoomRules = DEFAULT_RULES,
 ): Room {
   return {
-    meta: { code, createdAt: now, updatedAt: now, turn: 'host', rules },
+    meta: { code, createdAt: now, updatedAt: now, turn: 'host', rules, round: 1 },
     host: { id: hostId, name: hostName, placements: null, shotsReceived: [], joinedAt: now },
     guest: null,
   };
@@ -257,6 +267,32 @@ export function applyPlacement(
     meta: { ...room.meta, updatedAt: now },
     host: seat === 'host' ? updated : room.host,
     guest: seat === 'guest' ? updated : room.guest,
+  };
+}
+
+/**
+ * Starts another game in the same room, keeping the players, their names and
+ * the house rules. Whoever lost fires first.
+ *
+ * Only from `finished`, which is what makes it safe to rewrite both seats at
+ * once: nobody is playing. It also stops a stale client from wiping a
+ * rematch already under way, because by then the room is back in `placing`
+ * and this throws.
+ */
+export function rematch(room: Room, now = Date.now()): Room {
+  if (roomPhase(room) !== 'finished') {
+    throw new RoomError('wrong-phase', 'Todavía no ha terminado la partida');
+  }
+  const beaten = loser(room) ?? 'host';
+  const reset = (player: RoomPlayer): RoomPlayer => ({
+    ...player,
+    placements: null,
+    shotsReceived: [],
+  });
+  return {
+    meta: { ...room.meta, updatedAt: now, turn: beaten, round: roundOf(room) + 1 },
+    host: reset(room.host),
+    guest: room.guest ? reset(room.guest) : null,
   };
 }
 
@@ -320,6 +356,7 @@ export function viewRoomFor(room: Room, playerId: string): RoomView {
     phase,
     seat,
     rules: rulesOf(room),
+    round: roundOf(room),
     updatedAt: room.meta.updatedAt,
     yourTurn: phase === 'battle' && room.meta.turn === seat,
     you: {

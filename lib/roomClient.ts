@@ -59,6 +59,9 @@ export const placeFleetRequest = (code: string, playerId: string, placements: Pl
 export const shootRequest = (code: string, playerId: string, cell: Cell) =>
   post<{ view: RoomView; result: ShotResult }>('/api/room/shoot', { code, playerId, cell });
 
+export const rematchRequest = (code: string, playerId: string) =>
+  post<{ view: RoomView }>('/api/room/rematch', { code, playerId });
+
 /** The player's session in a room, stored so it survives a reload. */
 const sessionKey = (code: string) => `dbf:session:${code}`;
 const NAME_KEY = 'dbf:name';

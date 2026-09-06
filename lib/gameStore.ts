@@ -43,6 +43,12 @@ export interface RoomStore {
   claimSeat(code: string, seat: Seat, player: RoomPlayer, meta: RoomMeta): Promise<boolean>;
   /** Overwrites a seat (and optionally the meta) that is already yours. */
   writeSeat(code: string, seat: Seat, player: RoomPlayer, meta: RoomMeta): Promise<void>;
+  /**
+   * Overwrites the whole room. Only for a rematch: it is the one moment when
+   * both seats change at once, and it can only happen with the game already
+   * over, so there is no move in flight to trample.
+   */
+  writeRoom(code: string, room: Room): Promise<void>;
   /** Checks that the store answers. Throws if it does not. */
   ping(): Promise<void>;
 }
@@ -87,6 +93,16 @@ class RedisRoomStore implements RoomStore {
     await this.redis.hset(key, {
       [seat]: player as unknown as object,
       meta: meta as unknown as object,
+    });
+    await this.redis.expire(key, ROOM_TTL_SECONDS);
+  }
+
+  async writeRoom(code: string, room: Room): Promise<void> {
+    const key = keyFor(code);
+    await this.redis.hset(key, {
+      meta: room.meta as unknown as object,
+      host: room.host as unknown as object,
+      ...(room.guest ? { guest: room.guest as unknown as object } : {}),
     });
     await this.redis.expire(key, ROOM_TTL_SECONDS);
   }
@@ -137,6 +153,11 @@ class MemoryRoomStore implements RoomStore {
     const room = this.rooms.get(code);
     if (!room) return;
     this.rooms.set(code, { ...room, meta, [seat]: player } as Room);
+  }
+
+  async writeRoom(code: string, room: Room) {
+    if (!this.rooms.has(code)) return;
+    this.rooms.set(code, structuredClone(room));
   }
 }
 

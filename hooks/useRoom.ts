@@ -6,6 +6,7 @@ import {
   fetchRoomState,
   loadSession,
   placeFleetRequest,
+  rematchRequest,
   shootRequest,
 } from '@/lib/roomClient';
 import type { RoomView } from '@/lib/room';
@@ -25,6 +26,8 @@ export interface UseRoomResult {
   sunkByOpponent: ShipId | null;
   placeFleet: (placements: Placement[]) => Promise<void>;
   shoot: (cell: Cell) => Promise<void>;
+  /** Starts another game in the same room, once this one is over. */
+  rematch: () => Promise<void>;
   busy: boolean;
 }
 
@@ -46,6 +49,13 @@ export function useRoom(code: string): UseRoomResult {
   /** Spots new sinkings by comparing against the previous state. */
   const applyView = useCallback((next: RoomView) => {
     setView((previous) => {
+      // A rematch starts a clean game: the banners from the last one would
+      // otherwise pop up again over the new placement screen.
+      if (previous && next.round !== previous.round) {
+        setSunkByYou(null);
+        setSunkByOpponent(null);
+        return next;
+      }
       const previousMine = previous ? sunkShipIds(previous.opponent.outgoingShots).length : 0;
       const nextMine = sunkShipIds(next.opponent.outgoingShots);
       if (nextMine.length > previousMine) setSunkByYou(nextMine[nextMine.length - 1]);
@@ -128,5 +138,10 @@ export function useRoom(code: string): UseRoomResult {
     [code, runAction],
   );
 
-  return { view, error, sunkByYou, sunkByOpponent, placeFleet, shoot, busy };
+  const rematch = useCallback(
+    () => runAction((playerId) => rematchRequest(code, playerId)),
+    [code, runAction],
+  );
+
+  return { view, error, sunkByYou, sunkByOpponent, placeFleet, shoot, rematch, busy };
 }
