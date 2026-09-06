@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type HuntStrategy, chooseAiShot, unresolvedHits } from '../aiOpponent';
+import { HUNT_STRATEGIES, type HuntStrategy, chooseAiShot, unresolvedHits } from '../aiOpponent';
 import { TOTAL_SHIP_CELLS } from '../fleet';
 import {
   BOARD_SIZE,
@@ -168,16 +168,19 @@ describe('full game simulation', () => {
     expect(average).toBeLessThan(75);
   });
 
-  it('parity wins considerably sooner than random hunting', () => {
-    expect(averageShots('parity')).toBeLessThan(averageShots('random') - 5);
+  it('the three levels are actually ordered', () => {
+    const [normal, media, hard] = HUNT_STRATEGIES.map(averageShots);
+    expect(media).toBeLessThan(normal - 5);
+    expect(hard).toBeLessThan(media);
   });
 
-  it('density is the hardest of the three', () => {
-    // The numbers the settings screen quotes: around 61 shots on normal and
-    // around 45 on hard. If this drifts, the copy is lying to the player.
-    expect(averageShots('density')).toBeLessThan(averageShots('parity'));
-    expect(averageShots('density')).toBeLessThan(50);
-    expect(averageShots('random')).toBeGreaterThan(55);
+  it('each level takes about as many shots as the settings screen claims', () => {
+    // Normal 61, media 53, hard 45. The menu quotes these numbers, so if the
+    // AI drifts the copy starts lying to the player and this must fail.
+    const quoted: Record<HuntStrategy, number> = { random: 61, parity: 53, density: 45 };
+    for (const strategy of HUNT_STRATEGIES) {
+      expect(Math.abs(averageShots(strategy) - quoted[strategy])).toBeLessThan(4);
+    }
   });
 
   it('density also finishes every game without repeating a cell', () => {

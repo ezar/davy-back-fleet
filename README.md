@@ -96,10 +96,10 @@ repite celda y hunde los 17 objetivos.
 
 `chooseAiShot` acepta tres estrategias de caza, medidas sobre 400 partidas con semilla:
 
-| Estrategia | Disparos | Dónde se usa |
+| Estrategia | Disparos | Nivel |
 |---|---|---|
 | `random` | 61,2 | "Normal", el valor por defecto |
-| `parity` | 52,8 | Solo en los tests: es la explicación de por qué funciona el damero |
+| `parity` | 52,8 | "Media" |
 | `density` | 45,0 | "Difícil" |
 
 `density` cuenta, para cada celda sin probar, de cuántas formas podrían encajar encima

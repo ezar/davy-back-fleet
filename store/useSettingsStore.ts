@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { DEFAULT_HUNT_STRATEGY, type HuntStrategy } from '@/lib/aiOpponent';
+import { DEFAULT_HUNT_STRATEGY, HUNT_STRATEGIES, type HuntStrategy } from '@/lib/aiOpponent';
 import { DEFAULT_RULES, type RoomRules, normalizeRules } from '@/lib/room';
 
 /**
@@ -30,8 +30,9 @@ function readStoredView(): BoardView {
 
 function readStoredStrategy(): HuntStrategy {
   try {
-    // Anything unrecognised falls back to the default, never to the hard one.
-    return localStorage.getItem(AI_KEY) === 'density' ? 'density' : DEFAULT_HUNT_STRATEGY;
+    const stored = localStorage.getItem(AI_KEY);
+    // Anything unrecognised falls back to the easiest, never to a harder one.
+    return HUNT_STRATEGIES.find((strategy) => strategy === stored) ?? DEFAULT_HUNT_STRATEGY;
   } catch {
     return DEFAULT_HUNT_STRATEGY;
   }

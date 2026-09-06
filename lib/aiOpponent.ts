@@ -24,6 +24,13 @@ import type { Cell, ShotLog } from './types';
  */
 export type HuntStrategy = 'random' | 'parity' | 'density';
 
+/** Easiest first: the order the difficulty levels are offered in. */
+export const HUNT_STRATEGIES = [
+  'random',
+  'parity',
+  'density',
+] as const satisfies readonly HuntStrategy[];
+
 export const DEFAULT_HUNT_STRATEGY: HuntStrategy = 'random';
 
 export type AiPhase = 'hunt' | 'target';

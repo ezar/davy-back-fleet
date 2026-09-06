@@ -4,6 +4,30 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { RuleSwitches, Switch } from './RuleSwitches';
 import { notificationPermission, requestNotificationPermission } from '@/lib/notifications';
+import type { HuntStrategy } from '@/lib/aiOpponent';
+
+/**
+ * The three difficulty levels, easiest first. The shot counts are the
+ * measured averages over 400 seeded games, and a test guards them: what this
+ * menu promises has to stay true.
+ */
+const LEVELS: { strategy: HuntStrategy; label: string; hint: string }[] = [
+  {
+    strategy: 'random',
+    label: 'Normal',
+    hint: 'Dispara al azar mientras busca. Te hunde la flota en unos 61 disparos.',
+  },
+  {
+    strategy: 'parity',
+    label: 'Media',
+    hint: 'Busca en damero: como el barco más pequeño ocupa dos casillas, ninguno puede esconderse entre los huecos. Unos 53 disparos.',
+  },
+  {
+    strategy: 'density',
+    label: 'Difícil',
+    hint: 'Apunta donde más quepan los barcos que te quedan, y descarta el agua que ya conoce. Unos 45 disparos.',
+  },
+];
 import { useAudioStore } from '@/store/useAudioStore';
 import { type BoardView, useSettingsStore } from '@/store/useSettingsStore';
 
@@ -133,21 +157,17 @@ export function SettingsMenu({
                     Dificultad
                   </legend>
                   <div className="flex gap-1.5">
-                    <Choice
-                      active={aiStrategy === 'random'}
-                      label="Normal"
-                      onSelect={() => setAiStrategy('random')}
-                    />
-                    <Choice
-                      active={aiStrategy === 'density'}
-                      label="Difícil"
-                      onSelect={() => setAiStrategy('density')}
-                    />
+                    {LEVELS.map((level) => (
+                      <Choice
+                        key={level.strategy}
+                        active={aiStrategy === level.strategy}
+                        label={level.label}
+                        onSelect={() => setAiStrategy(level.strategy)}
+                      />
+                    ))}
                   </div>
                   <p className="mt-1.5 text-[0.65rem] leading-relaxed text-foam/40">
-                    {aiStrategy === 'random'
-                      ? 'Dispara al azar mientras busca. Te hunde la flota en unos 61 disparos.'
-                      : 'Apunta donde más quepan los barcos que te quedan, y descarta el agua que ya conoce. Unos 45 disparos.'}
+                    {LEVELS.find((level) => level.strategy === aiStrategy)?.hint}
                   </p>
                   <p className="mt-1 text-[0.65rem] leading-relaxed text-foam/30">
                     Se aplica a la siguiente partida.
