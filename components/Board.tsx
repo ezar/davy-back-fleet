@@ -315,20 +315,10 @@ function ShipOverlay({
       title={`${ship.name} — ${ship.crew}`}
     >
       {sunk ? (
-        <Wreck
-          shipId={placement.shipId}
-          size={ship.size}
-          horizontal={horizontal}
-          compact={compact}
-        />
+        <Wreck shipId={placement.shipId} size={ship.size} horizontal={horizontal} />
       ) : (
         <>
-          <BoardShipArt
-            shipId={placement.shipId}
-            vertical={!horizontal}
-            sunk={false}
-            simplified={compact}
-          />
+          <BoardShipArt shipId={placement.shipId} vertical={!horizontal} sunk={false} />
           {/* The colour stripe identifies the ship even when it is tiny. */}
           <span
             aria-hidden
@@ -355,12 +345,10 @@ function Wreck({
   shipId,
   size,
   horizontal,
-  compact,
 }: {
   shipId: ShipId;
   size: number;
   horizontal: boolean;
-  compact: boolean;
 }) {
   // The pivot is the break point, so the free end swings in proportion to
   // the length: at a fixed angle a five-cell ship would throw its halves
@@ -387,7 +375,7 @@ function Wreck({
           style={{ clipPath: half.clip, transformOrigin: half.origin }}
           className="absolute inset-0"
         >
-          <BoardShipArt shipId={shipId} vertical={!horizontal} sunk simplified={compact} />
+          <BoardShipArt shipId={shipId} vertical={!horizontal} sunk />
         </motion.span>
       ))}
     </>

@@ -61,7 +61,7 @@ export function OwnFleetStatus({
   const byId = new Map((placements ?? []).map((p) => [p.shipId, p]));
 
   return (
-    <ul className="flex flex-1 flex-col gap-1.5">
+    <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
       {FLEET.map((ship) => {
         const down = sunk.has(ship.id);
         const placement = byId.get(ship.id);
