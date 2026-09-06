@@ -19,9 +19,12 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   const [draft, setDraft] = useState<Placement[]>([]);
   const unlockAudio = useAudioStore((state) => state.unlock);
 
-  // A starting fleet is rolled on the client so hydration is not broken.
+  // A starting fleet is rolled on the client so hydration is not broken, and
+  // under the room's rules: the host may have allowed touching ships.
   useEffect(() => {
-    if (draft.length === 0 && view && !view.you.ready) setDraft(randomFleet());
+    if (draft.length === 0 && view && !view.you.ready) {
+      setDraft(randomFleet(undefined, view.rules.allowAdjacent));
+    }
     // Only when entering the placement phase: after that the player is in charge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.you.ready]);
@@ -59,10 +62,19 @@ export default function RoomPage({ params }: { params: { code: string } }) {
               Coloca tu flota
             </h1>
             <p className="mt-1 text-xs text-foam/50">
-              Solo tú ves este tablero. Quien acierta repite turno.
+              Solo tú ves este tablero.{' '}
+              {view.rules.extraTurnOnHit
+                ? 'Quien acierta repite turno.'
+                : 'El turno alterna en cada disparo.'}
+              {view.rules.allowAdjacent && ' Los barcos pueden tocarse.'}
             </p>
           </div>
-          <PlacementEditor placements={draft} onChange={setDraft} disabled={busy} />
+          <PlacementEditor
+            placements={draft}
+            onChange={setDraft}
+            disabled={busy}
+            allowAdjacent={view.rules.allowAdjacent}
+          />
           <button
             type="button"
             onClick={() => {

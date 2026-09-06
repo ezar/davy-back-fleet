@@ -3,12 +3,18 @@
 import { create } from 'zustand';
 import { DEFAULT_HUNT_STRATEGY, type HuntStrategy, chooseAiShot } from '@/lib/aiOpponent';
 import { isFleetDestroyed, randomFleet, resolveShot } from '@/lib/gameLogic';
-import type { Cell, Placement, ShipId, ShotLog } from '@/lib/types';
+import { DEFAULT_RULES, type RoomRules } from '@/lib/room';
+import type { Cell, Placement, ShipId, ShotLog, ShotResult } from '@/lib/types';
 
 export type SoloPhase = 'idle' | 'placing' | 'battle' | 'finished';
 
 /** Pause between AI shots, so what happens can be read. */
 const AI_DELAY_MS = 700;
+
+/** Does the shooter fire again? A hit does, unless the rule is turned off. */
+function keepsTurn(rules: RoomRules, outcome: ShotResult['outcome']): boolean {
+  return rules.extraTurnOnHit && outcome !== 'miss';
+}
 
 interface SoloState {
   phase: SoloPhase;
@@ -24,13 +30,15 @@ interface SoloState {
    * the difficulty change halfway through a game already under way.
    */
   aiStrategy: HuntStrategy;
+  /** House rules, frozen when the game starts for the same reason. */
+  rules: RoomRules;
   winner: 'player' | 'ai' | null;
   aiThinking: boolean;
   lastSunkByPlayer: ShipId | null;
   lastSunkByAi: ShipId | null;
 
   /** Starts a new game in the placement phase. Client only. */
-  newGame: (aiStrategy?: HuntStrategy) => void;
+  newGame: (aiStrategy?: HuntStrategy, rules?: RoomRules) => void;
   setPlayerFleet: (placements: Placement[]) => void;
   startBattle: () => void;
   shoot: (cell: Cell) => void;
@@ -63,11 +71,11 @@ export const useGameStore = create<SoloState>((set, get) => {
         lastSunkByAi: result.sunkShipId ?? current.lastSunkByAi,
         winner: defeated ? 'ai' : null,
         phase: defeated ? 'finished' : 'battle',
-        turn: result.outcome === 'miss' ? 'player' : 'ai',
+        turn: keepsTurn(current.rules, result.outcome) ? 'ai' : 'player',
         aiThinking: false,
       });
 
-      if (!defeated && result.outcome !== 'miss') runAiTurn();
+      if (!defeated && keepsTurn(current.rules, result.outcome)) runAiTurn();
     }, AI_DELAY_MS);
   }
 
@@ -79,17 +87,19 @@ export const useGameStore = create<SoloState>((set, get) => {
     shotsAtPlayer: [],
     turn: 'player',
     aiStrategy: DEFAULT_HUNT_STRATEGY,
+    rules: DEFAULT_RULES,
     winner: null,
     aiThinking: false,
     lastSunkByPlayer: null,
     lastSunkByAi: null,
 
-    newGame: (aiStrategy = DEFAULT_HUNT_STRATEGY) =>
+    newGame: (aiStrategy = DEFAULT_HUNT_STRATEGY, rules = DEFAULT_RULES) =>
       set({
         phase: 'placing',
         aiStrategy,
-        playerFleet: randomFleet(),
-        aiFleet: randomFleet(),
+        rules,
+        playerFleet: randomFleet(undefined, rules.allowAdjacent),
+        aiFleet: randomFleet(undefined, rules.allowAdjacent),
         shotsAtAi: [],
         shotsAtPlayer: [],
         turn: 'player',
@@ -119,11 +129,10 @@ export const useGameStore = create<SoloState>((set, get) => {
         lastSunkByPlayer: result.sunkShipId ?? state.lastSunkByPlayer,
         winner: defeated ? 'player' : null,
         phase: defeated ? 'finished' : 'battle',
-        // A hit earns another go, as in the board game.
-        turn: result.outcome === 'miss' ? 'ai' : 'player',
+        turn: keepsTurn(state.rules, result.outcome) ? 'player' : 'ai',
       });
 
-      if (!defeated && result.outcome === 'miss') runAiTurn();
+      if (!defeated && !keepsTurn(state.rules, result.outcome)) runAiTurn();
     },
   };
 });

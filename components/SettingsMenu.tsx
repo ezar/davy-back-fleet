@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import { RuleSwitches, Switch } from './RuleSwitches';
 import { useAudioStore } from '@/store/useAudioStore';
 import { type BoardView, useSettingsStore } from '@/store/useSettingsStore';
 
@@ -122,29 +123,28 @@ export function SettingsMenu({
               </div>
             )}
 
+            {solo && (
+              <div className="mb-3 border-t border-foam/8 pt-2.5">
+                <p className="mb-2 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-foam/45">
+                  Reglas
+                </p>
+                <RuleSwitches />
+                <p className="mt-2 text-[0.65rem] leading-relaxed text-foam/30">
+                  Se aplican a la siguiente partida.
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center justify-between border-t border-foam/8 pt-2.5">
               <span className="text-xs font-bold text-foam/70">Sonido</span>
-              <button
-                type="button"
-                onClick={() => {
+              <Switch
+                checked={!muted}
+                label="Sonido"
+                onChange={() => {
                   unlock();
                   toggleMuted();
                 }}
-                role="switch"
-                aria-checked={!muted}
-                className={[
-                  'relative h-6 w-11 rounded-full transition',
-                  muted ? 'bg-foam/15' : 'bg-gold',
-                ].join(' ')}
-              >
-                <span
-                  aria-hidden
-                  className={[
-                    'absolute top-1 h-4 w-4 rounded-full bg-abyss transition-all',
-                    muted ? 'left-1' : 'left-6',
-                  ].join(' ')}
-                />
-              </button>
+              />
             </div>
           </motion.div>
         )}

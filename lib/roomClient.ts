@@ -1,6 +1,6 @@
 'use client';
 
-import type { RoomView } from './room';
+import type { RoomRules, RoomView } from './room';
 import type { Cell, Placement, ShotResult } from './types';
 
 /** HTTP client for the room routes. Everything that talks to the server goes through here. */
@@ -42,7 +42,8 @@ export interface JoinResponse {
   view: RoomView;
 }
 
-export const createRoomRequest = (name: string) => post<JoinResponse>('/api/room/create', { name });
+export const createRoomRequest = (name: string, rules: RoomRules) =>
+  post<JoinResponse>('/api/room/create', { name, rules });
 
 export const joinRoomRequest = (code: string, name: string) =>
   post<JoinResponse>('/api/room/join', { code, name });
